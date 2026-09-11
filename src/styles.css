@@ -1,0 +1,31 @@
+* { box-sizing: border-box; }
+body { margin: 0; background: #fff; color: #111; font-family: system-ui, sans-serif; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+main { width: min(1180px, calc(100% - 32px)); margin: 40px auto; }
+header { margin-bottom: 24px; }
+h1 { margin: 0; font-size: 32px; }
+header p { margin: 6px 0 0; color: #666; }
+.controls { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
+.controls span { margin-left: auto; }
+button { border: 1px solid #ccc; background: #fff; padding: 8px 12px; border-radius: 6px; }
+button.active { border-color: #111; font-weight: 700; }
+button:disabled { cursor: default; opacity: .45; }
+form { display: flex; gap: 8px; max-width: 440px; }
+input { flex: 1; border: 1px solid #bbb; border-radius: 6px; padding: 10px 12px; }
+.suggestions { width: min(360px, 100%); border: 1px solid #ddd; margin-top: 4px; }
+.suggestions button { display: block; width: 100%; border: 0; border-radius: 0; text-align: left; }
+.suggestions button + button { border-top: 1px solid #eee; }
+.table-wrap { overflow-x: auto; margin-top: 24px; }
+table { width: 100%; min-width: 900px; border-collapse: collapse; }
+th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+th { background: #fafafa; }
+.hint span, .hint small { display: block; }
+.hint small { margin-top: 4px; font-size: 11px; color: #555; }
+.hint.exact { background: #dff4df; }
+.hint.partial { background: #fff0b8; }
+.hint.wrong { background: #f5dddd; }
+.hint.higher, .hint.lower { background: #edf1f5; }
+.hint.hidden { background: #eee; color: #888; font-weight: 700; }
+.empty, .result { border: 1px solid #ddd; padding: 16px; }
+.result { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; }
