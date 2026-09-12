@@ -249,9 +249,9 @@ export default function App() {
         </section>
       </main>
       <footer className="site-footer">
-        <p>본 사이트는 Nimble Neuron이 제공하는 공식 서비스가 아닌 비공식 팬 프로젝트입니다.</p>
-        <p>Eternal Return 및 관련 로고와 이미지의 권리는 Nimble Neuron Corp.에 있습니다.</p>
-        <p>방문자 수 확인을 위해 개인을 식별하지 않는 익명 이용 통계를 수집하며, 사이트 이용 시 이에 동의한 것으로 간주됩니다.</p>
+        <p>wordlER는 Nimble Neuron과 관련 없는 비공식 프로젝트입니다. 이터널 리턴 및 관련 캐릭터·명칭·이미지·로고의 지식재산권은 Nimble Neuron Corp. 및 각 권리자에게 있습니다.</p>
+        <p>본 안내를 확인하고 사이트를 이용하는 경우, Cloudflare Web Analytics를 통한 개인 식별 없는 방문 통계 수집에 동의한 것으로 간주됩니다.</p>
+        <p>게임 통계와 테마 설정은 브라우저의 로컬 저장소에만 저장되며 서버로 전송되지 않습니다.</p>
       </footer>
       <dialog className="success-dialog" ref={successDialog} onCancel={() => successDialog.current?.close()}>
         {game.status === 'won' && game.answer && (
