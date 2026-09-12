@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://wordler.dev/sitemap.xml
+Sitemap: https://wordler.app/sitemap.xml
