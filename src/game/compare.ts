@@ -1,5 +1,20 @@
-import type { Character, ComparableField, GuessHints, HintStatus } from '../types';
+import type { Character, ComparableField, GameMode, GuessHints, HintStatus } from '../types';
 export const COMPARABLE_FIELDS: ComparableField[] = ['roles', 'weapons', 'age', 'height', 'risk'];
+export function randomFields(count: number): ComparableField[] {
+  const pool = [...COMPARABLE_FIELDS];
+  const fields: ComparableField[] = [];
+  const limit = Math.max(0, Math.min(count, pool.length));
+  while (fields.length < limit) {
+    fields.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+  }
+  return fields;
+}
+export function hiddenFields(mode: GameMode, guessIndex: number, singleField: ComparableField): ComparableField[] {
+  if (mode === 'sealed') return randomFields(2);
+  if (mode === 'fog') return randomFields(COMPARABLE_FIELDS.length - Math.min(guessIndex + 1, COMPARABLE_FIELDS.length));
+  if (mode === 'single') return COMPARABLE_FIELDS.filter(field => field !== singleField);
+  return [];
+}
 export function compareSet(guess: string[], answer: string[]): HintStatus {
   const a = new Set(guess);
   const b = new Set(answer);

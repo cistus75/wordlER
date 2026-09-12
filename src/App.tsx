@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { characters } from './data/characters';
 import { useGame, MAX_GUESSES } from './game/useGame';
 import { COMPARABLE_FIELDS } from './game/compare';
 import { searchCharacters } from './game/search';
-import type { ComparableField, Character, HintStatus } from './types';
+import { clearStats, loadStats, recordGame } from './game/stats';
+import type { ComparableField, Character, GameMode, HintStatus } from './types';
 import './styles.css';
 
 const labels: Record<ComparableField, string> = {
@@ -15,6 +16,21 @@ const statuses: Record<HintStatus, string> = {
 const symbols: Record<HintStatus, string> = {
   exact: '✓', partial: '≈', wrong: '×', higher: '↑', lower: '↓',
 };
+const modes: { id: GameMode; label: string; description: string }[] = [
+  { id: 'classic', label: '기본', description: '모든 속성을 확인할 수 있어요.' },
+  { id: 'sealed', label: '봉인', description: '매 추측마다 무작위 속성 2개가 잠겨요.' },
+  { id: 'fog', label: '안개', description: '매 추측마다 속성이 하나씩 열려요.' },
+  { id: 'single', label: '단일', description: '한 판 동안 무작위 속성 하나만 보여요.' },
+];
+type Theme = 'light' | 'dark';
+
+function initialTheme(): Theme {
+  const stored = localStorage.getItem('wordler:theme');
+  const theme = stored === 'dark' ? 'dark' : 'light';
+  document.documentElement.dataset.theme = theme;
+  document.documentElement.style.colorScheme = theme;
+  return theme;
+}
 
 function valueText(value: unknown) {
   if (value === null) return '미상';
@@ -30,7 +46,11 @@ export default function App() {
   const [error, setError] = useState('');
   const input = useRef<HTMLInputElement>(null);
   const nextButton = useRef<HTMLButtonElement>(null);
+  const successDialog = useRef<HTMLDialogElement>(null);
+  const statsDialog = useRef<HTMLDialogElement>(null);
   const focusNextRound = useRef(false);
+  const [stats, setStats] = useState(loadStats);
+  const [theme, setTheme] = useState<Theme>(initialTheme);
   const matches = searchCharacters(characters, query);
   const suggestions = matches.filter(c => !game.guessedIds.has(c.id)).slice(0, 7);
   const showSuggestions = searchOpen && suggestions.length > 0 && game.status === 'playing';
@@ -48,9 +68,25 @@ export default function App() {
     }
   }, [game.status]);
 
+  useEffect(() => {
+    if (game.status === 'won') successDialog.current?.showModal();
+  }, [game.status]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
+    localStorage.setItem('wordler:theme', theme);
+  }, [theme]);
+
   function submit(character?: Character) {
     if (!character) { setError('목록에서 실험체를 선택해주세요.'); return; }
-    if (game.submitGuess(character)) {
+    const result = game.submitGuess(character);
+    if (result) {
+      const won = game.answer?.id === character.id;
+      const attempts = game.guesses.length + 1;
+      if (won || attempts === MAX_GUESSES) {
+        setStats(current => recordGame(current, won, attempts));
+      }
       setQuery('');
       setError('');
       setActive(0);
@@ -60,6 +96,7 @@ export default function App() {
   }
 
   function next() {
+    successDialog.current?.close();
     focusNextRound.current = true;
     game.reset();
     setQuery('');
@@ -75,13 +112,29 @@ export default function App() {
   return (
     <div className="app">
       <header className="site-header">
-        <h1><img className="logo" src="/logo.svg" width="158" height="34" alt="wordlER" /></h1>
+        <h1><img className="logo" src={theme === 'dark' ? '/logo-dark.svg' : '/logo.svg'} width="158" height="34" alt="wordlER" /></h1>
+        <div className="header-actions">
+          <button className="theme-toggle" aria-pressed={theme === 'dark'} onClick={() => setTheme(current => current === 'dark' ? 'light' : 'dark')}>
+            <span aria-hidden="true">{theme === 'dark' ? '☀' : '☾'}</span> {theme === 'dark' ? '라이트' : '다크'}
+          </button>
+          <button className="stats-button" onClick={() => statsDialog.current?.showModal()} aria-label="통계 보기">
+            <span aria-hidden="true">▥</span> 통계
+          </button>
+        </div>
       </header>
       <main>
         <section className="game" aria-label="실험체 추리">
           <div className="intro">
-            <h2>누구인지 알아내볼까요?</h2>
-            <p>다섯 번의 추측으로 실험체를 찾아보세요.</p>
+            <h2>누구인지 맞춰볼까요?</h2>
+            <p>{modes.find(mode => mode.id === game.mode)?.description}</p>
+          </div>
+
+          <div className="mode-tabs" aria-label="게임 모드">
+            {modes.map(mode => (
+              <button key={mode.id} className={game.mode === mode.id ? 'active' : ''} aria-pressed={game.mode === mode.id} onClick={() => game.setMode(mode.id)}>
+                {mode.label}
+              </button>
+            ))}
           </div>
 
           {game.status === 'playing' ? (
@@ -93,7 +146,7 @@ export default function App() {
                 <form onSubmit={event => { event.preventDefault(); submit(suggestions[active]); }}>
                   <input
                     id="guess" ref={input} value={query}
-                    placeholder="이름 또는 초성으로 검색" autoComplete="off" autoCapitalize="none" spellCheck={false}
+                    placeholder="이름·초성으로 검색" autoComplete="off" autoCapitalize="none" spellCheck={false}
                     role="combobox" aria-expanded={showSuggestions}
                     aria-controls={showSuggestions ? 'suggestions' : undefined}
                     aria-autocomplete="list" aria-describedby={searchMessage ? 'search-message' : undefined}
@@ -135,21 +188,21 @@ export default function App() {
                 <p id="search-message" className="input-note" role="status">{searchMessage}</p>
               </div>
               <div className="input-bottom">
-                <span>남은 기회 <strong>{MAX_GUESSES - game.guesses.length}</strong> / {MAX_GUESSES}</span>
+                <span className="chances">남은 기회 <strong>{MAX_GUESSES - game.guesses.length}</strong><small>/ {MAX_GUESSES}</small></span>
                 <button className="random" onClick={() => {
                   const remaining = characters.filter(character => !game.guessedIds.has(character.id));
                   submit(remaining[Math.floor(Math.random() * remaining.length)]);
-                }}>랜덤 추측</button>
+                }}><span aria-hidden="true">↻</span> 랜덤 추측</button>
               </div>
             </div>
           ) : game.answer && (
             <div className={`result ${game.status}`}>
               <img src={`/character/${game.answer.id}.png`} width="64" height="64" alt="" />
               <div className="result-copy" role="status">
-                <p>{game.status === 'won' ? `${game.guesses.length}번 만에 찾았어요!` : '아쉽지만, 정답은'}</p>
+                <p>{game.status === 'won' ? `${game.guesses.length}번 만에 찾았어요!` : '정답은'}</p>
                 <h2>{game.answer.name}</h2>
               </div>
-              <button ref={nextButton} onClick={next}>다음 실험체 <span aria-hidden="true">→</span></button>
+              <button ref={game.status === 'lost' ? nextButton : undefined} onClick={next}>다시하기 <span aria-hidden="true">→</span></button>
             </div>
           )}
 
@@ -157,7 +210,8 @@ export default function App() {
             <span className="exact">✓ 일치</span>
             <span className="partial">≈ 일부 일치</span>
             <span className="wrong">× 다름</span>
-            <span className="direction">↑ 더 높음 · ↓ 더 낮음</span>
+            <span className="direction">↑ 더 높음</span>
+            <span className="direction">↓ 더 낮음</span>
           </div>
           <p className="sr-only" aria-live="polite" aria-atomic="true">
             {game.status === 'playing' && latest ? `${latest.character.name} 추측 완료. ${MAX_GUESSES - game.guesses.length}번 남았습니다.` : ''}
@@ -165,21 +219,25 @@ export default function App() {
           <div className="results">
             {[...game.guesses].reverse().map((guess, index) => (
               <article className={`guess-card${index === 0 ? ' latest' : ''}`} key={guess.character.id} aria-label={`${game.guesses.length - index}번째 추측: ${guess.character.name}`}>
-                <div className="character-cell">
+                <div className="character-cell reveal-tile" style={{ '--tile-index': 0 } as CSSProperties}>
                   <small>{String(game.guesses.length - index).padStart(2, '0')}</small>
                   <img className="character-mini" src={`/character/${guess.character.id}.png`} width="64" height="64" alt="" />
                   <h2>{guess.character.name}</h2>
                 </div>
                 <dl>
-                  {COMPARABLE_FIELDS.map(field => (
-                    <div className="attribute" key={field}>
+                  {COMPARABLE_FIELDS.map((field, fieldIndex) => (
+                    <div className="attribute reveal-tile" key={field} style={{ '--tile-index': fieldIndex + 1 } as CSSProperties}>
                       <dt>{labels[field]}</dt>
                       <dd>
-                        <span className={`hint ${guess.hints[field].status}`} title={statuses[guess.hints[field].status]}>
-                          <b aria-hidden="true">{symbols[guess.hints[field].status]}</b>
-                          {valueText(guess.hints[field].value)}
-                          <span className="sr-only"> {statuses[guess.hints[field].status]}</span>
-                        </span>
+                        {guess.hiddenFields.includes(field) ? (
+                          <span className="hint locked"><b aria-hidden="true">?</b><span className="sr-only">봉인</span></span>
+                        ) : (
+                          <span className={`hint ${guess.hints[field].status}`} title={statuses[guess.hints[field].status]}>
+                            <b aria-hidden="true">{symbols[guess.hints[field].status]}</b>
+                            {valueText(guess.hints[field].value)}
+                            <span className="sr-only"> {statuses[guess.hints[field].status]}</span>
+                          </span>
+                        )}
                       </dd>
                     </div>
                   ))}
@@ -190,8 +248,64 @@ export default function App() {
           {!game.guesses.length && <p className="empty-board">익숙한 실험체부터 시작해보세요.</p>}
         </section>
       </main>
+      <footer className="site-footer">
+        <p>본 사이트는 Nimble Neuron이 제공하는 공식 서비스가 아닌 비공식 팬 프로젝트입니다.</p>
+        <p>Eternal Return 및 관련 로고와 이미지의 권리는 Nimble Neuron Corp.에 있습니다.</p>
+        <p>방문자 수 확인을 위해 개인을 식별하지 않는 익명 이용 통계를 수집하며, 사이트 이용 시 이에 동의한 것으로 간주됩니다.</p>
+      </footer>
+      <dialog className="success-dialog" ref={successDialog} onCancel={() => successDialog.current?.close()}>
+        {game.status === 'won' && game.answer && (
+          <div className="success-content">
+            <button className="dialog-close" aria-label="닫기" onClick={() => successDialog.current?.close()}>×</button>
+            <div className="success-art">
+              <img
+                src={`/character/full/${game.answer.id}.png`}
+                alt={`${game.answer.name} 전신 이미지`}
+                onError={event => { event.currentTarget.src = `/character/${game.answer?.id}.png`; event.currentTarget.classList.add('fallback'); }}
+              />
+            </div>
+            <div className="success-copy">
+              <span className="success-label">정답입니다</span>
+              <h2>{game.answer.name}</h2>
+              <dl>
+                <div><dt>도전 횟수</dt><dd>{game.guesses.length} / {MAX_GUESSES}</dd></div>
+                <div><dt>게임 모드</dt><dd>{modes.find(mode => mode.id === game.mode)?.label} 모드</dd></div>
+              </dl>
+              <button ref={nextButton} onClick={next}>다시하기 <span aria-hidden="true">→</span></button>
+            </div>
+          </div>
+        )}
+      </dialog>
+      <dialog className="stats-dialog" ref={statsDialog} onCancel={() => statsDialog.current?.close()}>
+        <div className="stats-content">
+          <button className="dialog-close" aria-label="닫기" onClick={() => statsDialog.current?.close()}>×</button>
+          <h2>게임 통계</h2>
+          <p>이 브라우저의 기기에만 저장됩니다.</p>
+          <div className="stats-summary">
+            <div><strong>{stats.played}</strong><span>플레이</span></div>
+            <div><strong>{stats.played ? Math.round(stats.wins / stats.played * 100) : 0}%</strong><span>승률</span></div>
+            <div><strong>{stats.currentStreak}</strong><span>현재 연승</span></div>
+            <div><strong>{stats.maxStreak}</strong><span>최장 연승</span></div>
+          </div>
+          <section className="distribution" aria-labelledby="distribution-title">
+            <h3 id="distribution-title">시도 횟수 분포</h3>
+            {stats.distribution.map((count, index) => {
+              const max = Math.max(...stats.distribution, 1);
+              return (
+                <div className="distribution-row" key={index}>
+                  <span>{index + 1}</span>
+                  <div className="distribution-track">
+                    <div className="distribution-bar" style={{ width: count ? `${Math.max(count / max * 100, 10)}%` : '0' }}>
+                      {count > 0 && <strong>{count}</strong>}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </section>
+          <button className="clear-stats" onClick={() => setStats(clearStats())}>기록 삭제</button>
+        </div>
+      </dialog>
     </div>
   );
 }
-
-

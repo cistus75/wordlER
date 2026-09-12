@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="158" height="34" viewBox="0 0 158 34">
-  <rect x="1" y="3" width="27" height="27" rx="5" fill="#edf3ee"/>
-  <path d="M8 11h13v3H11v3h8v3h-8v3h10v3H8z" fill="#52745c" transform="translate(0 -2)"/>
-  <text x="37" y="26" font-family="Arial,Helvetica,sans-serif" font-size="27" font-weight="700" letter-spacing="-1.4" fill="#272e2a">wordl<tspan fill="#52745c">ER</tspan></text>
+  <rect x="1" y="3" width="27" height="27" rx="5" fill="#f5f5f5"/>
+  <path d="M8 11h13v3H11v3h8v3h-8v3h10v3H8z" fill="#171717" transform="translate(0 -2)"/>
+  <text x="37" y="26" font-family="Arial,Helvetica,sans-serif" font-size="27" font-weight="700" letter-spacing="-1.4" fill="#171717">wordl<tspan fill="#525252">ER</tspan></text>
 </svg>
