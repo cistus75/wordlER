@@ -19,3 +19,36 @@ export interface GuessResult {
   hiddenFields: ComparableField[];
 }
 
+export type ItemType = 'Weapon' | 'Armor';
+export type ItemGrade = 'Epic' | 'Legend' | 'Mythic';
+export interface WordlerItem {
+  code: number;
+  name: string;
+  englishName: string;
+  itemType: ItemType;
+  subType: string;
+  grade: ItemGrade;
+  statTags: string[];
+  searchTags: string[];
+  itemSkillGroups: string[];
+  itemSkills: unknown[];
+  image: string;
+}
+export type ItemField = 'category' | 'grade' | 'type' | 'options' | 'uniqueEffect';
+export interface NormalizedItem extends WordlerItem {
+  categoryLabel: string;
+  gradeLabel: string;
+  mainType: string;
+  mainTypeLabel: string;
+  optionTags: string[];
+  optionLabels: string[];
+  effectGroups: string[];
+}
+export type ItemGuessHints = Record<ItemField, FieldHint<string | string[]>>;
+export interface ItemGuessResult {
+  item: NormalizedItem;
+  hints: ItemGuessHints;
+  hiddenFields: ItemField[];
+  sameProfile: boolean;
+}
+
