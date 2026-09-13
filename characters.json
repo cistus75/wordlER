@@ -40,7 +40,7 @@
   {"id":"Camilo","name":"카밀로","roles":["전사"],"weapons":["쌍검","레이피어"],"age":21,"height":184,"risk":"D"},
   {"id":"Chloe","name":"클로에","roles":["원거리딜러"],"weapons":["암기"],"age":24,"height":165,"risk":"B"},
   {"id":"Johann","name":"요한","roles":["지원가"],"weapons":["아르카나"],"age":30,"height":174,"risk":"E"},
-  {"id":"Bianca","name":"비앙카","roles":["스킬딜러"],"weapons":["아르카나"],"age":19,"height":149,"risk":"E"},
+  {"id":"Bianca","name":"비앙카","roles":["스킬딜러"],"weapons":["아르카나"],"age":17,"height":149,"risk":"E"},
   {"id":"Celine","name":"셀린","roles":["스킬딜러"],"weapons":["투척"],"age":24,"height":167,"risk":"D"},
   {"id":"Echion","name":"에키온","roles":["전사"],"weapons":["VF의수"],"age":21,"height":183,"risk":"B"},
   {"id":"Mai","name":"마이","roles":["탱커","지원가"],"weapons":["채찍"],"age":20,"height":166,"risk":"E"},

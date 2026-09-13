@@ -7,7 +7,7 @@ export interface GameStats {
 }
 
 const STORAGE_KEY = 'wordler:stats:v1';
-const DISTRIBUTION_SIZE = 5;
+const DISTRIBUTION_SIZE = 10;
 
 export function emptyStats(): GameStats {
   return { played: 0, wins: 0, currentStreak: 0, maxStreak: 0, distribution: Array(DISTRIBUTION_SIZE).fill(0) };
@@ -30,7 +30,7 @@ export function loadStats(): GameStats {
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null');
     if (!stored || !Array.isArray(stored.distribution)) return emptyStats();
-    return { ...emptyStats(), ...stored, distribution: [...stored.distribution, 0, 0, 0, 0, 0].slice(0, DISTRIBUTION_SIZE) };
+    return { ...emptyStats(), ...stored, distribution: [...stored.distribution, ...Array(DISTRIBUTION_SIZE).fill(0)].slice(0, DISTRIBUTION_SIZE) };
   } catch {
     return emptyStats();
   }

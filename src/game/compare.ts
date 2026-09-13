@@ -26,13 +26,17 @@ export function compareNumber(guess: number | null, answer: number | null): Hint
   if (guess === null || answer === null) return 'wrong';
   return guess < answer ? 'higher' : 'lower';
 }
-export function buildGuessHints(guess: Character, answer: Character): GuessHints {
+export function compareRisk(guess: string, answer: string): HintStatus {
+  if (guess === answer) return 'exact';
+  return answer < guess ? 'higher' : 'lower';
+}
+export function buildGuessHints(guess: Character, answer: Character, mode: GameMode = 'classic'): GuessHints {
   return {
     roles: { value: guess.roles, status: compareSet(guess.roles, answer.roles) },
     weapons: { value: guess.weapons, status: compareSet(guess.weapons, answer.weapons) },
     age: { value: guess.age, status: compareNumber(guess.age, answer.age) },
     height: { value: guess.height, status: compareNumber(guess.height, answer.height) },
-    risk: { value: guess.risk, status: guess.risk === answer.risk ? 'exact' : 'wrong' },
+    risk: { value: guess.risk, status: mode === 'coward' ? compareRisk(guess.risk, answer.risk) : guess.risk === answer.risk ? 'exact' : 'wrong' },
   };
 }
 export function isCorrectGuess(guess: Character, answer: Character): boolean {

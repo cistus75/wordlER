@@ -1,27 +1,18 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { characters } from './data/characters';
-import { useGame, MAX_GUESSES } from './game/useGame';
+import { useGame } from './game/useGame';
 import { COMPARABLE_FIELDS } from './game/compare';
 import { searchCharacters } from './game/search';
 import { clearStats, loadStats, recordGame } from './game/stats';
-import type { ComparableField, Character, GameMode, HintStatus } from './types';
+import { GAME_MODES, HINT_LEGEND, HINT_STATUSES, HINT_SYMBOLS } from './game/ui';
+import type { ComparableField, Character } from './types';
+import ItemGame from './ItemGame';
+import PatchNotesDialog from './patch-notes/PatchNotesDialog';
 import './styles.css';
 
 const labels: Record<ComparableField, string> = {
   roles: '역할군', weapons: '무기', age: '나이 (세)', height: '키 (cm)', risk: '위험등급',
 };
-const statuses: Record<HintStatus, string> = {
-  exact: '일치', partial: '일부 일치', wrong: '다름', higher: '정답이 더 높음', lower: '정답이 더 낮음',
-};
-const symbols: Record<HintStatus, string> = {
-  exact: '✓', partial: '≈', wrong: '×', higher: '↑', lower: '↓',
-};
-const modes: { id: GameMode; label: string; description: string }[] = [
-  { id: 'classic', label: '기본', description: '모든 속성을 확인할 수 있어요.' },
-  { id: 'sealed', label: '봉인', description: '매 추측마다 무작위 속성 2개가 잠겨요.' },
-  { id: 'fog', label: '안개', description: '매 추측마다 속성이 하나씩 열려요.' },
-  { id: 'single', label: '단일', description: '한 판 동안 무작위 속성 하나만 보여요.' },
-];
 type Theme = 'light' | 'dark';
 
 function initialTheme(): Theme {
@@ -39,6 +30,7 @@ function valueText(value: unknown) {
 }
 
 export default function App() {
+  const [gameKind, setGameKind] = useState<'character' | 'item'>('character');
   const game = useGame(characters);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
@@ -48,12 +40,14 @@ export default function App() {
   const nextButton = useRef<HTMLButtonElement>(null);
   const successDialog = useRef<HTMLDialogElement>(null);
   const statsDialog = useRef<HTMLDialogElement>(null);
+  const patchNotesDialog = useRef<HTMLDialogElement>(null);
   const focusNextRound = useRef(false);
   const [stats, setStats] = useState(loadStats);
   const [theme, setTheme] = useState<Theme>(initialTheme);
   const matches = searchCharacters(characters, query);
-  const suggestions = matches.filter(c => !game.guessedIds.has(c.id)).slice(0, 7);
-  const showSuggestions = searchOpen && suggestions.length > 0 && game.status === 'playing';
+  const visibleSuggestions = matches.slice(0, 7);
+  const suggestions = visibleSuggestions.filter(character => !game.guessedIds.has(character.id));
+  const showSuggestions = searchOpen && visibleSuggestions.length > 0 && game.status === 'playing';
   const latest = game.guesses.at(-1);
 
   useEffect(() => {
@@ -84,7 +78,7 @@ export default function App() {
     if (result) {
       const won = game.answer?.id === character.id;
       const attempts = game.guesses.length + 1;
-      if (won || attempts === MAX_GUESSES) {
+      if (won || attempts === game.maxGuesses) {
         setStats(current => recordGame(current, won, attempts));
       }
       setQuery('');
@@ -117,20 +111,28 @@ export default function App() {
           <button className="theme-toggle" aria-pressed={theme === 'dark'} onClick={() => setTheme(current => current === 'dark' ? 'light' : 'dark')}>
             <span aria-hidden="true">{theme === 'dark' ? '☀' : '☾'}</span> {theme === 'dark' ? '라이트' : '다크'}
           </button>
+          <button className="patch-notes-button" onClick={() => patchNotesDialog.current?.showModal()} aria-label="패치노트 보기">
+            <span aria-hidden="true">≡</span> 패치노트
+          </button>
           <button className="stats-button" onClick={() => statsDialog.current?.showModal()} aria-label="통계 보기">
             <span aria-hidden="true">▥</span> 통계
           </button>
         </div>
       </header>
       <main>
+        <div className="kind-tabs" aria-label="추리 대상">
+          <button className={gameKind === 'character' ? 'active' : ''} aria-pressed={gameKind === 'character'} onClick={() => setGameKind('character')}>실험체</button>
+          <button className={gameKind === 'item' ? 'active' : ''} aria-pressed={gameKind === 'item'} onClick={() => setGameKind('item')}>아이템</button>
+        </div>
+        {gameKind === 'item' ? <ItemGame onFinished={(won, attempts) => setStats(current => recordGame(current, won, attempts))} /> : (
         <section className="game" aria-label="실험체 추리">
           <div className="intro">
             <h2>누구인지 맞춰볼까요?</h2>
-            <p>{modes.find(mode => mode.id === game.mode)?.description}</p>
+            <p>{GAME_MODES.find(mode => mode.id === game.mode)?.description}</p>
           </div>
 
           <div className="mode-tabs" aria-label="게임 모드">
-            {modes.map(mode => (
+            {GAME_MODES.map(mode => (
               <button key={mode.id} className={game.mode === mode.id ? 'active' : ''} aria-pressed={game.mode === mode.id} onClick={() => game.setMode(mode.id)}>
                 {mode.label}
               </button>
@@ -144,7 +146,7 @@ export default function App() {
               }}>
                 <label className="sr-only" htmlFor="guess">실험체 이름</label>
                 <form onSubmit={event => { event.preventDefault(); submit(suggestions[active]); }}>
-                  <input
+                  <input type="search" enterKeyHint="search"
                     id="guess" ref={input} value={query}
                     placeholder="이름·초성으로 검색" autoComplete="off" autoCapitalize="none" spellCheck={false}
                     role="combobox" aria-expanded={showSuggestions}
@@ -171,24 +173,29 @@ export default function App() {
                 </form>
                 {showSuggestions && (
                   <div id="suggestions" className="suggestions" role="listbox" aria-label="실험체 검색 결과">
-                    {suggestions.map((character, index) => (
+                    {visibleSuggestions.map(character => {
+                      const guessed = game.guessedIds.has(character.id);
+                      const highlighted = suggestions[active]?.id === character.id;
+                      return (
                       <button
                         id={`option-${character.id}`} role="option" type="button" tabIndex={-1}
-                        aria-selected={active === index} className={active === index ? 'highlighted' : ''}
+                        aria-selected={highlighted} aria-disabled={guessed} disabled={guessed} className={highlighted ? 'highlighted' : ''}
                         key={character.id} onMouseDown={event => event.preventDefault()}
                         onClick={() => submit(character)}
                       >
                         <img src={`/character/${character.id}.png`} width="38" height="38" alt="" />
                         <span className="suggestion-name"><strong>{character.name}</strong><small>{character.id}</small></span>
-                        <span className="suggestion-enter" aria-hidden="true">↵</span>
+                        <span className={guessed ? 'suggestion-state' : 'suggestion-enter'} aria-hidden="true">{guessed ? '이미 추측함' : '↵'}</span>
                       </button>
-                    ))}
+                      );
+                    })}
+                    <div className="suggestion-help" role="presentation">↑↓ 이동 · Enter 선택 · Esc 닫기</div>
                   </div>
                 )}
                 <p id="search-message" className="input-note" role="status">{searchMessage}</p>
               </div>
               <div className="input-bottom">
-                <span className="chances">남은 기회 <strong>{MAX_GUESSES - game.guesses.length}</strong><small>/ {MAX_GUESSES}</small></span>
+                <span className="chances">남은 기회 <strong>{game.maxGuesses - game.guesses.length}</strong><small>/ {game.maxGuesses}</small></span>
                 <button className="random" onClick={() => {
                   const remaining = characters.filter(character => !game.guessedIds.has(character.id));
                   submit(remaining[Math.floor(Math.random() * remaining.length)]);
@@ -207,14 +214,10 @@ export default function App() {
           )}
 
           <div className="legend" aria-label="단서 읽는 법">
-            <span className="exact">✓ 일치</span>
-            <span className="partial">≈ 일부 일치</span>
-            <span className="wrong">× 다름</span>
-            <span className="direction">↑ 더 높음</span>
-            <span className="direction">↓ 더 낮음</span>
+            {HINT_LEGEND.map(entry => <span className={entry.className} key={entry.text}>{entry.text}</span>)}
           </div>
           <p className="sr-only" aria-live="polite" aria-atomic="true">
-            {game.status === 'playing' && latest ? `${latest.character.name} 추측 완료. ${MAX_GUESSES - game.guesses.length}번 남았습니다.` : ''}
+            {game.status === 'playing' && latest ? `${latest.character.name} 추측 완료. ${game.maxGuesses - game.guesses.length}번 남았습니다.` : ''}
           </p>
           <div className="results">
             {[...game.guesses].reverse().map((guess, index) => (
@@ -232,10 +235,10 @@ export default function App() {
                         {guess.hiddenFields.includes(field) ? (
                           <span className="hint locked"><b aria-hidden="true">?</b><span className="sr-only">봉인</span></span>
                         ) : (
-                          <span className={`hint ${guess.hints[field].status}`} title={statuses[guess.hints[field].status]}>
-                            <b aria-hidden="true">{symbols[guess.hints[field].status]}</b>
+                          <span className={`hint ${guess.hints[field].status}`} title={HINT_STATUSES[guess.hints[field].status]}>
+                            <b aria-hidden="true">{HINT_SYMBOLS[guess.hints[field].status]}</b>
                             {valueText(guess.hints[field].value)}
-                            <span className="sr-only"> {statuses[guess.hints[field].status]}</span>
+                            <span className="sr-only"> {HINT_STATUSES[guess.hints[field].status]}</span>
                           </span>
                         )}
                       </dd>
@@ -247,6 +250,7 @@ export default function App() {
           </div>
           {!game.guesses.length && <p className="empty-board">익숙한 실험체부터 시작해보세요.</p>}
         </section>
+        )}
       </main>
       <footer className="site-footer">
         <p>wordlER는 Nimble Neuron과 관련 없는 비공식 프로젝트입니다. 이터널 리턴 및 관련 캐릭터·명칭·이미지·로고의 지식재산권은 Nimble Neuron Corp. 및 각 권리자에게 있습니다.</p>
@@ -268,14 +272,15 @@ export default function App() {
               <span className="success-label">정답입니다</span>
               <h2>{game.answer.name}</h2>
               <dl>
-                <div><dt>도전 횟수</dt><dd>{game.guesses.length} / {MAX_GUESSES}</dd></div>
-                <div><dt>게임 모드</dt><dd>{modes.find(mode => mode.id === game.mode)?.label} 모드</dd></div>
+                <div><dt>도전 횟수</dt><dd>{game.guesses.length} / {game.maxGuesses}</dd></div>
+                <div><dt>게임 모드</dt><dd>{GAME_MODES.find(mode => mode.id === game.mode)?.label} 모드</dd></div>
               </dl>
               <button ref={nextButton} onClick={next}>다시하기 <span aria-hidden="true">→</span></button>
             </div>
           </div>
         )}
       </dialog>
+      <PatchNotesDialog dialogRef={patchNotesDialog} />
       <dialog className="stats-dialog" ref={statsDialog} onCancel={() => statsDialog.current?.close()}>
         <div className="stats-content">
           <button className="dialog-close" aria-label="닫기" onClick={() => statsDialog.current?.close()}>×</button>
