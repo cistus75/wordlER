@@ -3,7 +3,9 @@ import { readFileSync } from 'node:fs';
 import { searchCharacters } from '../src/game/search.ts';
 import { buildGuessHints, compareNumber, compareRisk, compareSet, hiddenFields, isCorrectGuess, randomFields } from '../src/game/compare.ts';
 import { applyGameResult, emptyStats } from '../src/game/stats.ts';
+import { buildItemGuessHints, compareItemEffects, compareItemOptions, hiddenItemFields, isCorrectItemGuess, normalizeItem, normalizeSkillGroup, searchItems } from '../src/game/item.ts';
 const characters = JSON.parse(readFileSync(new URL('../characters.json', import.meta.url), 'utf8').replace(/^\uFEFF/, ''));
+const rawItems = JSON.parse(readFileSync(new URL('../wordler_items.json', import.meta.url), 'utf8').replace(/^\uFEFF/, ''));
 assert.equal(new Set(characters.map(c => c.id)).size, characters.length);
 assert.equal(compareSet(['검', '활'], ['활', '검']), 'exact');
 assert.equal(compareSet(['검', '활'], ['검']), 'partial');
@@ -61,3 +63,60 @@ assert.equal(stats.currentStreak, 0);
 assert.equal(stats.maxStreak, 2);
 assert.deepEqual(stats.distribution, [1, 0, 1, 0, 0, 0, 0, 0, 0, 0]);
 console.log('Passed local game statistics checks.');
+
+assert.equal(rawItems.length, 477);
+for (const code of [102504, 108506, 130504, 202531]) {
+  assert.equal(rawItems.find(item => item.code === code)?.image, `/item-images/${code}.png`);
+}
+const item = overrides => normalizeItem({
+  code: 1, name: '테스트', englishName: 'Test', itemType: 'Weapon', subType: 'Bow', grade: 'Epic',
+  statTags: [], searchTags: ['Main_Attack'], itemSkillGroups: [], itemSkills: [], image: '/item-images/1.png',
+  ...overrides,
+});
+const answerItem = item({ code: 10, name: '정답', subType: 'Bow', grade: 'Legend', searchTags: ['Main_Attack', 'Sub1_AttackSpeed', 'Sub1_Critical'], itemSkillGroups: ['열정'] });
+assert.equal(buildItemGuessHints(item({ subType: 'Bow' }), answerItem).category.status, 'exact');
+assert.equal(buildItemGuessHints(item({ subType: 'Bat' }), answerItem).category.status, 'partial');
+assert.equal(buildItemGuessHints(item({ itemType: 'Armor', subType: 'Head' }), answerItem).category.status, 'wrong');
+assert.equal(buildItemGuessHints(item({ grade: 'Legend' }), answerItem).grade.status, 'exact');
+assert.equal(buildItemGuessHints(item({ grade: 'Epic' }), answerItem).grade.status, 'higher');
+assert.equal(buildItemGuessHints(item({ grade: 'Mythic' }), answerItem).grade.status, 'lower');
+assert.equal(item({ grade: 'Mythic' }).gradeLabel, '초월');
+assert.equal(buildItemGuessHints(item({ searchTags: ['Main_Attack'] }), answerItem).type.status, 'exact');
+assert.equal(buildItemGuessHints(item({ searchTags: ['Main_Tank'] }), answerItem).type.status, 'wrong');
+assert.equal(compareItemOptions(['A', 'B'], ['B', 'A']), 'exact');
+assert.equal(compareItemOptions(['A', 'B'], ['B', 'C']), 'partial');
+assert.equal(compareItemOptions(['A'], ['B']), 'wrong');
+assert.equal(compareItemOptions([], []), 'exact');
+assert.equal(compareItemOptions([], ['A']), 'wrong');
+assert.equal(compareItemEffects([], []), 'exact');
+assert.equal(compareItemEffects([], ['열정']), 'wrong');
+assert.equal(compareItemEffects(['열정'], ['열정']), 'exact');
+assert.equal(compareItemEffects(['열정'], ['저주']), 'partial');
+assert.equal(compareItemEffects(['A'], ['A', 'B']), 'partial');
+assert.equal(normalizeSkillGroup('의념[데스애더]'), '의념');
+assert.equal(normalizeSkillGroup('예열 - 증강'), '예열 - 증강');
+assert.ok(isCorrectItemGuess(item({ code: 7 }), item({ code: 7 })));
+assert.equal(isCorrectItemGuess(item({ code: 7 }), item({ code: 8 })), false);
+const sameProfileGuess = item({ code: 11, name: '다른 아이템', subType: answerItem.subType, grade: answerItem.grade, searchTags: answerItem.searchTags, itemSkillGroups: answerItem.itemSkillGroups });
+assert.ok(Object.values(buildItemGuessHints(sameProfileGuess, answerItem)).every(hint => hint.status === 'exact'));
+assert.equal(isCorrectItemGuess(sameProfileGuess, answerItem), false);
+assert.equal(hiddenItemFields('classic', 0, 'category').length, 0);
+assert.equal(hiddenItemFields('sealed', 0, 'category').length, 2);
+assert.equal(hiddenItemFields('fog', 0, 'category').length, 4);
+assert.equal(hiddenItemFields('fog', 4, 'category').length, 0);
+assert.deepEqual(hiddenItemFields('single', 0, 'category'), ['grade', 'type', 'options', 'uniqueEffect']);
+const normalizedItems = rawItems.map(normalizeItem);
+const fieldThorn = normalizedItems.find(item => item.code === 120504);
+assert.ok(fieldThorn);
+assert.deepEqual([fieldThorn.name, fieldThorn.englishName, fieldThorn.categoryLabel, fieldThorn.gradeLabel, fieldThorn.mainTypeLabel, fieldThorn.effectGroups[0]], ['필드 쏜', 'Field Thorn', '무기 · 레이피어', '전설', '스킬', '신속']);
+assert.equal(searchItems(normalizedItems, 'ㅍㄷㅆ')[0].code, 120504);
+const chillwindCuirass = rawItems.find(item => item.code === 202531);
+assert.equal(searchItems(normalizedItems, 'ㅅㄼㄹ')[0].code, chillwindCuirass.code);
+assert.equal(searchItems(normalizedItems, 'tfqf')[0].code, chillwindCuirass.code);
+assert.equal(searchItems(normalizedItems, 'tjflqkfka')[0].code, chillwindCuirass.code);
+assert.equal(searchItems(normalizedItems, '노스페라투 새벽')[0].name, '노스페라투-새벽');
+assert.equal(searchItems(normalizedItems, String(rawItems[0].code))[0].code, rawItems[0].code);
+assert.equal(searchItems(normalizedItems, rawItems[0].englishName)[0].code, rawItems[0].code);
+assert.equal(searchItems(normalizedItems, 'ㄱㄱㅂ')[0].code, rawItems[0].code);
+assert.equal(searchItems(normalizedItems, 'rndrlqud')[0].code, rawItems[0].code);
+console.log(`Passed item comparison, mode, search, and dataset checks for ${rawItems.length} items.`);
