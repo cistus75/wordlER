@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { searchCharacters } from '../src/game/search.ts';
-import { buildGuessHints, compareNumber, compareSet, hiddenFields, isCorrectGuess, randomFields } from '../src/game/compare.ts';
+import { buildGuessHints, compareNumber, compareRisk, compareSet, hiddenFields, isCorrectGuess, randomFields } from '../src/game/compare.ts';
 import { applyGameResult, emptyStats } from '../src/game/stats.ts';
 const characters = JSON.parse(readFileSync(new URL('../characters.json', import.meta.url), 'utf8').replace(/^\uFEFF/, ''));
 assert.equal(new Set(characters.map(c => c.id)).size, characters.length);
@@ -12,6 +12,9 @@ assert.equal(compareNumber(17, 26), 'higher');
 assert.equal(compareNumber(190, 160), 'lower');
 assert.equal(compareNumber(null, 20), 'wrong');
 assert.equal(compareNumber(null, null), 'exact');
+assert.equal(compareRisk('C', 'A'), 'higher');
+assert.equal(compareRisk('B', 'D'), 'lower');
+assert.equal(buildGuessHints({ ...characters[0], risk: 'C' }, { ...characters[1], risk: 'A' }, 'coward').risk.status, 'higher');
 for (const character of characters) {
   assert.ok(character.roles.length && character.weapons.length && /^[A-E]$/.test(character.risk));
   assert.ok(Object.values(buildGuessHints(character, character)).every(hint => hint.status === 'exact'));
@@ -56,5 +59,5 @@ assert.equal(stats.played, 3);
 assert.equal(stats.wins, 2);
 assert.equal(stats.currentStreak, 0);
 assert.equal(stats.maxStreak, 2);
-assert.deepEqual(stats.distribution, [1, 0, 1, 0, 0]);
+assert.deepEqual(stats.distribution, [1, 0, 1, 0, 0, 0, 0, 0, 0, 0]);
 console.log('Passed local game statistics checks.');

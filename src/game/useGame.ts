@@ -3,6 +3,7 @@ import type { Character, ComparableField, GameMode, GameStatus, GuessResult } fr
 import { buildGuessHints, hiddenFields, isCorrectGuess, randomFields } from './compare';
 
 export const MAX_GUESSES = 5;
+export const SUPER_COWARD_MAX_GUESSES = 10;
 function randomCharacter(characters: Character[], previousId?: string): Character | null {
   const candidates = characters.length > 1 ? characters.filter(character => character.id !== previousId) : characters;
   return candidates[Math.floor(Math.random() * candidates.length)] ?? null;
@@ -14,6 +15,7 @@ export function useGame(characters: Character[]) {
   const [status, setStatus] = useState<GameStatus>('playing');
   const [singleField, setSingleField] = useState<ComparableField>(() => randomFields(1)[0]);
   const guessedIds = useMemo(() => new Set(guesses.map(result => result.character.id)), [guesses]);
+  const maxGuesses = mode === 'coward' ? SUPER_COWARD_MAX_GUESSES : MAX_GUESSES;
   function reset(nextMode: GameMode = mode) {
     setAnswer(current => randomCharacter(characters, current?.id));
     setGuesses([]);
@@ -28,13 +30,13 @@ export function useGame(characters: Character[]) {
     if (!answer || status !== 'playing' || guessedIds.has(character.id)) return null;
     const result = {
       character,
-      hints: buildGuessHints(character, answer),
+      hints: buildGuessHints(character, answer, mode),
       hiddenFields: hiddenFields(mode, guesses.length, singleField),
     };
     setGuesses([...guesses, result]);
     if (isCorrectGuess(character, answer)) setStatus('won');
-    else if (guesses.length + 1 >= MAX_GUESSES) setStatus('lost');
+    else if (guesses.length + 1 >= maxGuesses) setStatus('lost');
     return result;
   }
-  return { answer, guesses, guessedIds, mode, status, submitGuess, reset, setMode };
+  return { answer, guesses, guessedIds, mode, status, maxGuesses, submitGuess, reset, setMode };
 }

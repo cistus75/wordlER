@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { characters } from './data/characters';
-import { useGame, MAX_GUESSES } from './game/useGame';
+import { useGame } from './game/useGame';
 import { COMPARABLE_FIELDS } from './game/compare';
 import { searchCharacters } from './game/search';
 import { clearStats, loadStats, recordGame } from './game/stats';
@@ -21,6 +21,7 @@ const modes: { id: GameMode; label: string; description: string }[] = [
   { id: 'sealed', label: '봉인', description: '매 추측마다 무작위 속성 2개가 잠겨요.' },
   { id: 'fog', label: '안개', description: '매 추측마다 속성이 하나씩 열려요.' },
   { id: 'single', label: '단일', description: '한 판 동안 무작위 속성 하나만 보여요.' },
+  { id: 'coward', label: '슈퍼겁쟁이', description: '허접~ 허접~ 이것도 못 맞추는 허접 유저~' },
 ];
 type Theme = 'light' | 'dark';
 
@@ -84,7 +85,7 @@ export default function App() {
     if (result) {
       const won = game.answer?.id === character.id;
       const attempts = game.guesses.length + 1;
-      if (won || attempts === MAX_GUESSES) {
+      if (won || attempts === game.maxGuesses) {
         setStats(current => recordGame(current, won, attempts));
       }
       setQuery('');
@@ -188,7 +189,7 @@ export default function App() {
                 <p id="search-message" className="input-note" role="status">{searchMessage}</p>
               </div>
               <div className="input-bottom">
-                <span className="chances">남은 기회 <strong>{MAX_GUESSES - game.guesses.length}</strong><small>/ {MAX_GUESSES}</small></span>
+                <span className="chances">남은 기회 <strong>{game.maxGuesses - game.guesses.length}</strong><small>/ {game.maxGuesses}</small></span>
                 <button className="random" onClick={() => {
                   const remaining = characters.filter(character => !game.guessedIds.has(character.id));
                   submit(remaining[Math.floor(Math.random() * remaining.length)]);
@@ -214,7 +215,7 @@ export default function App() {
             <span className="direction">↓ 더 낮음</span>
           </div>
           <p className="sr-only" aria-live="polite" aria-atomic="true">
-            {game.status === 'playing' && latest ? `${latest.character.name} 추측 완료. ${MAX_GUESSES - game.guesses.length}번 남았습니다.` : ''}
+            {game.status === 'playing' && latest ? `${latest.character.name} 추측 완료. ${game.maxGuesses - game.guesses.length}번 남았습니다.` : ''}
           </p>
           <div className="results">
             {[...game.guesses].reverse().map((guess, index) => (
@@ -268,7 +269,7 @@ export default function App() {
               <span className="success-label">정답입니다</span>
               <h2>{game.answer.name}</h2>
               <dl>
-                <div><dt>도전 횟수</dt><dd>{game.guesses.length} / {MAX_GUESSES}</dd></div>
+                <div><dt>도전 횟수</dt><dd>{game.guesses.length} / {game.maxGuesses}</dd></div>
                 <div><dt>게임 모드</dt><dd>{modes.find(mode => mode.id === game.mode)?.label} 모드</dd></div>
               </dl>
               <button ref={nextButton} onClick={next}>다시하기 <span aria-hidden="true">→</span></button>
