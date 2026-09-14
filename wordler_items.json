@@ -1043,7 +1043,8 @@
     "searchTags": [
       "Main_Attack",
       "Sub1_AttackSpeed",
-      "Sub1_Cooldown"
+      "Sub1_Cooldown",
+      "Sub1_Critical"
     ],
     "itemSkillGroups": [
       "타임 엣지"
@@ -2381,7 +2382,7 @@
     ],
     "searchTags": [
       "Main_Skill",
-      "Sub1_SkillAmpRatio"
+      "Sub1_Cooldown"
     ],
     "itemSkillGroups": [
       "격려"
@@ -2504,7 +2505,7 @@
     "searchTags": [
       "Main_Skill",
       "Sub1_Cooldown",
-      "Sub1_Tank"
+      "Sub1_SkillAmpRatio"
     ],
     "itemSkillGroups": [
       "응집"
@@ -3451,7 +3452,7 @@
     ],
     "searchTags": [
       "Main_Skill",
-      "Sub2_ArmorPenetrate",
+      "Sub1_Cooldown",
       "Ex_Mobility"
     ],
     "itemSkillGroups": [
@@ -3608,7 +3609,7 @@
     "searchTags": [
       "Main_Skill",
       "Sub1_AttackSpeed",
-      "Sub2_MaxHP"
+      "Sub1_Cooldown"
     ],
     "itemSkillGroups": [
       "포톤 런처"
@@ -3700,8 +3701,7 @@
     ],
     "searchTags": [
       "Main_Skill",
-      "Sub1_Cooldown",
-      "Sub2_MaxHP"
+      "Sub1_Cooldown"
     ],
     "itemSkillGroups": [
       "죽음을 위한 기도"
@@ -3973,7 +3973,7 @@
     "searchTags": [
       "Main_Attack",
       "Sub1_AttackSpeed",
-      "Sub1_Tank"
+      "Sub2_MaxHP"
     ],
     "itemSkillGroups": [
       "두 개의 가면"
@@ -5187,7 +5187,7 @@
     "searchTags": [
       "Main_Tank",
       "Sub1_Cooldown",
-      "Sub1_SkillAmpRatio"
+      "Sub1_Tank"
     ],
     "itemSkillGroups": [
       "치유 감소"
@@ -5553,8 +5553,7 @@
     ],
     "searchTags": [
       "Main_Skill",
-      "Sub1_SkillAmpRatio",
-      "Sub1_Cooldown"
+      "Sub1_SkillAmpRatio"
     ],
     "itemSkillGroups": [
       "저주"
@@ -5604,8 +5603,7 @@
     ],
     "searchTags": [
       "Main_Skill",
-      "Sub1_SkillAmpRatio",
-      "Sub1_Cooldown"
+      "Sub1_SkillAmpRatio"
     ],
     "itemSkillGroups": [
       "저주"
@@ -5772,8 +5770,7 @@
     ],
     "searchTags": [
       "Main_Hybrid",
-      "Sub2_ArmorPenetrate",
-      "Sub1_Cooldown"
+      "Sub2_ArmorPenetrate"
     ],
     "itemSkillGroups": [
       "저주"
@@ -6582,7 +6579,6 @@
     ],
     "searchTags": [
       "Main_Skill",
-      "Sub1_Tank",
       "Sub2_MaxHP"
     ],
     "itemSkillGroups": [
@@ -9844,8 +9840,7 @@
     ],
     "searchTags": [
       "Main_Attack",
-      "Sub1_Critical",
-      "Sub1_Cooldown"
+      "Sub1_Critical"
     ],
     "itemSkillGroups": [
       "치유 감소"
@@ -10900,8 +10895,7 @@
       "SkillAmp"
     ],
     "searchTags": [
-      "Main_Attack",
-      "Sub1_Critical"
+      "Main_Skill"
     ],
     "itemSkillGroups": [
       "신속"
@@ -11965,7 +11959,6 @@
     ],
     "searchTags": [
       "Main_Skill",
-      "Sub1_Cooldown",
       "Sub1_Tank"
     ],
     "itemSkillGroups": [
@@ -13090,7 +13083,6 @@
     ],
     "searchTags": [
       "Main_Skill",
-      "Sub1_Tank",
       "Sub2_MaxHP"
     ],
     "itemSkillGroups": [
