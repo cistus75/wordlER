@@ -1,14 +1,16 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { characters } from './data/characters';
 import { useGame } from './game/useGame';
 import { COMPARABLE_FIELDS } from './game/compare';
-import { searchCharacters } from './game/search';
-import { clearStats, loadStats, recordGame } from './game/stats';
+import { SEARCH_QUERY_MAX_LENGTH, searchCharacters } from './game/search';
+import { clearStats, getStatsStorageKey, loadStats, recordGame, type GameKind } from './game/stats';
+import { safeStorageGet, safeStorageSet } from './game/storage';
 import { GAME_MODES, HINT_LEGEND, HINT_STATUSES, HINT_SYMBOLS } from './game/ui';
 import type { ComparableField, Character } from './types';
-import ItemGame from './ItemGame';
 import PatchNotesDialog from './patch-notes/PatchNotesDialog';
 import './styles.css';
+
+const ItemGame = lazy(() => import('./ItemGame'));
 
 const labels: Record<ComparableField, string> = {
   roles: '역할군', weapons: '무기', age: '나이 (세)', height: '키 (cm)', risk: '위험등급',
@@ -16,7 +18,7 @@ const labels: Record<ComparableField, string> = {
 type Theme = 'light' | 'dark';
 
 function initialTheme(): Theme {
-  const stored = localStorage.getItem('wordler:theme');
+  const stored = safeStorageGet('wordler:theme');
   const theme = stored === 'dark' ? 'dark' : 'light';
   document.documentElement.dataset.theme = theme;
   document.documentElement.style.colorScheme = theme;
@@ -30,7 +32,7 @@ function valueText(value: unknown) {
 }
 
 export default function App() {
-  const [gameKind, setGameKind] = useState<'character' | 'item'>('character');
+  const [gameKind, setGameKind] = useState<GameKind>('character');
   const game = useGame(characters);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
@@ -42,12 +44,12 @@ export default function App() {
   const statsDialog = useRef<HTMLDialogElement>(null);
   const patchNotesDialog = useRef<HTMLDialogElement>(null);
   const focusNextRound = useRef(false);
-  const [stats, setStats] = useState(loadStats);
+  const [statsByKind, setStatsByKind] = useState(() => ({ character: loadStats('character'), item: loadStats('item') }));
   const [theme, setTheme] = useState<Theme>(initialTheme);
-  const matches = searchCharacters(characters, query);
-  const visibleSuggestions = matches.slice(0, 7);
-  const suggestions = visibleSuggestions.filter(character => !game.guessedIds.has(character.id));
-  const showSuggestions = searchOpen && visibleSuggestions.length > 0 && game.status === 'playing';
+  const stats = statsByKind[gameKind];
+  const matches = useMemo(() => searchCharacters(characters, query), [query]);
+  const suggestions = useMemo(() => matches.filter(character => !game.guessedIds.has(character.id)).slice(0, 7), [matches, game.guessedIds]);
+  const showSuggestions = searchOpen && suggestions.length > 0 && game.status === 'playing';
   const latest = game.guesses.at(-1);
 
   useEffect(() => {
@@ -55,22 +57,40 @@ export default function App() {
   }, [active, query, showSuggestions]);
 
   useEffect(() => {
-    if (game.status !== 'playing') nextButton.current?.focus({ preventScroll: true });
-    else if (focusNextRound.current) {
+    if (game.status === 'won') {
+      successDialog.current?.showModal();
+      nextButton.current?.focus({ preventScroll: true });
+    } else if (game.status === 'lost') {
+      nextButton.current?.focus({ preventScroll: true });
+    } else if (focusNextRound.current) {
       input.current?.focus({ preventScroll: true });
       focusNextRound.current = false;
     }
   }, [game.status]);
 
   useEffect(() => {
-    if (game.status === 'won') successDialog.current?.showModal();
-  }, [game.status]);
+    function syncStats(event: StorageEvent) {
+      if (event.key === null) {
+        setStatsByKind({ character: loadStats('character'), item: loadStats('item') });
+        return;
+      }
+      for (const kind of ['character', 'item'] as const) {
+        if (event.key === getStatsStorageKey(kind)) setStatsByKind(current => ({ ...current, [kind]: loadStats(kind) }));
+      }
+    }
+    window.addEventListener('storage', syncStats);
+    return () => window.removeEventListener('storage', syncStats);
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
-    localStorage.setItem('wordler:theme', theme);
+    safeStorageSet('wordler:theme', theme);
   }, [theme]);
+
+  function finishGame(kind: GameKind, won: boolean, attempts: number) {
+    setStatsByKind(current => ({ ...current, [kind]: recordGame(kind, won, attempts) }));
+  }
 
   function submit(character?: Character) {
     if (!character) { setError('목록에서 실험체를 선택해주세요.'); return; }
@@ -79,7 +99,7 @@ export default function App() {
       const won = game.answer?.id === character.id;
       const attempts = game.guesses.length + 1;
       if (won || attempts === game.maxGuesses) {
-        setStats(current => recordGame(current, won, attempts));
+        finishGame('character', won, attempts);
       }
       setQuery('');
       setError('');
@@ -124,7 +144,7 @@ export default function App() {
           <button className={gameKind === 'character' ? 'active' : ''} aria-pressed={gameKind === 'character'} onClick={() => setGameKind('character')}>실험체</button>
           <button className={gameKind === 'item' ? 'active' : ''} aria-pressed={gameKind === 'item'} onClick={() => setGameKind('item')}>아이템</button>
         </div>
-        {gameKind === 'item' ? <ItemGame onFinished={(won, attempts) => setStats(current => recordGame(current, won, attempts))} /> : (
+        {gameKind === 'item' ? <Suspense fallback={<p className="empty-board">아이템 게임을 불러오는 중…</p>}><ItemGame onFinished={(won, attempts) => finishGame('item', won, attempts)} /></Suspense> : (
         <section className="game" aria-label="실험체 추리">
           <div className="intro">
             <h2>누구인지 맞춰볼까요?</h2>
@@ -146,7 +166,7 @@ export default function App() {
               }}>
                 <label className="sr-only" htmlFor="guess">실험체 이름</label>
                 <form onSubmit={event => { event.preventDefault(); submit(suggestions[active]); }}>
-                  <input type="search" enterKeyHint="search"
+                  <input type="search" enterKeyHint="search" maxLength={SEARCH_QUERY_MAX_LENGTH}
                     id="guess" ref={input} value={query}
                     placeholder="이름·초성으로 검색" autoComplete="off" autoCapitalize="none" spellCheck={false}
                     role="combobox" aria-expanded={showSuggestions}
@@ -173,19 +193,18 @@ export default function App() {
                 </form>
                 {showSuggestions && (
                   <div id="suggestions" className="suggestions" role="listbox" aria-label="실험체 검색 결과">
-                    {visibleSuggestions.map(character => {
-                      const guessed = game.guessedIds.has(character.id);
+                    {suggestions.map(character => {
                       const highlighted = suggestions[active]?.id === character.id;
                       return (
                       <button
                         id={`option-${character.id}`} role="option" type="button" tabIndex={-1}
-                        aria-selected={highlighted} aria-disabled={guessed} disabled={guessed} className={highlighted ? 'highlighted' : ''}
+                        aria-selected={highlighted} className={highlighted ? 'highlighted' : ''}
                         key={character.id} onMouseDown={event => event.preventDefault()}
                         onClick={() => submit(character)}
                       >
                         <img src={`/character/${character.id}.png`} width="38" height="38" alt="" />
                         <span className="suggestion-name"><strong>{character.name}</strong><small>{character.id}</small></span>
-                        <span className={guessed ? 'suggestion-state' : 'suggestion-enter'} aria-hidden="true">{guessed ? '이미 추측함' : '↵'}</span>
+                        <span className="suggestion-enter" aria-hidden="true">↵</span>
                       </button>
                       );
                     })}
@@ -265,7 +284,7 @@ export default function App() {
               <img
                 src={`/character/full/${game.answer.id}.png`}
                 alt={`${game.answer.name} 전신 이미지`}
-                onError={event => { event.currentTarget.src = `/character/${game.answer?.id}.png`; event.currentTarget.classList.add('fallback'); }}
+                onError={event => { const target = event.currentTarget; target.onerror = null; target.src = `/character/${game.answer?.id}.png`; target.classList.add('fallback'); }}
               />
             </div>
             <div className="success-copy">
@@ -308,7 +327,7 @@ export default function App() {
               );
             })}
           </section>
-          <button className="clear-stats" onClick={() => setStats(clearStats())}>기록 삭제</button>
+          <button className="clear-stats" onClick={() => setStatsByKind(current => ({ ...current, [gameKind]: clearStats(gameKind) }))}>기록 삭제</button>
         </div>
       </dialog>
     </div>

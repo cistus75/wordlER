@@ -1,17 +1,13 @@
 import type { Character, ComparableField, GameMode, GuessHints, HintStatus } from '../types';
+import { shuffle } from './shuffle.ts';
 export const COMPARABLE_FIELDS: ComparableField[] = ['roles', 'weapons', 'age', 'height', 'risk'];
+const RISK_RANK: Record<string, number> = { A: 0, B: 1, C: 2, D: 3, E: 4 };
 export function randomFields(count: number): ComparableField[] {
-  const pool = [...COMPARABLE_FIELDS];
-  const fields: ComparableField[] = [];
-  const limit = Math.max(0, Math.min(count, pool.length));
-  while (fields.length < limit) {
-    fields.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
-  }
-  return fields;
+  return shuffle(COMPARABLE_FIELDS).slice(0, Math.max(0, Math.min(count, COMPARABLE_FIELDS.length)));
 }
-export function hiddenFields(mode: GameMode, guessIndex: number, singleField: ComparableField): ComparableField[] {
+export function hiddenFields(mode: GameMode, guessIndex: number, singleField: ComparableField, revealOrder = COMPARABLE_FIELDS): ComparableField[] {
   if (mode === 'sealed') return randomFields(2);
-  if (mode === 'fog') return randomFields(COMPARABLE_FIELDS.length - Math.min(guessIndex + 1, COMPARABLE_FIELDS.length));
+  if (mode === 'fog') return revealOrder.slice(Math.min(guessIndex + 1, revealOrder.length));
   if (mode === 'single') return COMPARABLE_FIELDS.filter(field => field !== singleField);
   return [];
 }
@@ -28,7 +24,7 @@ export function compareNumber(guess: number | null, answer: number | null): Hint
 }
 export function compareRisk(guess: string, answer: string): HintStatus {
   if (guess === answer) return 'exact';
-  return answer < guess ? 'higher' : 'lower';
+  return RISK_RANK[answer] < RISK_RANK[guess] ? 'higher' : 'lower';
 }
 export function buildGuessHints(guess: Character, answer: Character, mode: GameMode = 'classic'): GuessHints {
   return {
