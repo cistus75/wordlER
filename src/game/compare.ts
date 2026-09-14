@@ -8,7 +8,7 @@ export function randomFields(count: number): ComparableField[] {
 export function hiddenFields(mode: GameMode, guessIndex: number, singleField: ComparableField, revealOrder = COMPARABLE_FIELDS): ComparableField[] {
   if (mode === 'sealed') return randomFields(2);
   if (mode === 'fog') return revealOrder.slice(Math.min(guessIndex + 1, revealOrder.length));
-  if (mode === 'single') return COMPARABLE_FIELDS.filter(field => field !== singleField);
+  if (mode === 'single' || mode === 'manly') return COMPARABLE_FIELDS.filter(field => field !== singleField);
   return [];
 }
 export function compareSet(guess: string[], answer: string[]): HintStatus {
@@ -19,7 +19,8 @@ export function compareSet(guess: string[], answer: string[]): HintStatus {
 }
 export function compareNumber(guess: number | null, answer: number | null): HintStatus {
   if (guess === answer) return 'exact';
-  if (guess === null || answer === null) return 'wrong';
+  if (answer === null) return Math.random() < 0.5 ? 'higher' : 'lower';
+  if (guess === null) return 'wrong';
   return guess < answer ? 'higher' : 'lower';
 }
 export function compareRisk(guess: string, answer: string): HintStatus {

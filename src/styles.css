@@ -273,7 +273,7 @@ form button { width: 100px; flex-shrink: 0; height: 48px; }
   .intro { margin: 22px 0 23px; }
   .intro h2 { font-size: 21px; }
   .intro p { font-size: 13px; }
-  .mode-tabs { display: grid; grid-template-columns: repeat(5, 1fr); width: 100%; }
+  .mode-tabs { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; }
   .mode-tabs button { padding: 8px 6px; font-size: 12px; }
   form { gap: 8px; }
   input { padding: 12px; }

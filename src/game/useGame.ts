@@ -1,9 +1,13 @@
 import { useMemo, useState } from 'react';
-import type { Character, ComparableField, GameMode, GameStatus, GuessResult } from '../types';
-import { buildGuessHints, COMPARABLE_FIELDS, hiddenFields, isCorrectGuess, randomFields } from './compare';
+import type { Character, ComparableField, GameMode, GameStatus, GuessResult } from '../types.ts';
+import { buildGuessHints, COMPARABLE_FIELDS, hiddenFields, isCorrectGuess, randomFields } from './compare.ts';
 
 export const MAX_GUESSES = 5;
 export const SUPER_COWARD_MAX_GUESSES = 10;
+export const MANLY_MAX_GUESSES = 3;
+export function maxGuessesForMode(mode: GameMode): number {
+  return mode === 'coward' ? SUPER_COWARD_MAX_GUESSES : mode === 'manly' ? MANLY_MAX_GUESSES : MAX_GUESSES;
+}
 function randomCharacter(characters: Character[], previousId?: string): Character | null {
   const candidates = characters.length > 1 ? characters.filter(character => character.id !== previousId) : characters;
   return candidates[Math.floor(Math.random() * candidates.length)] ?? null;
@@ -16,7 +20,7 @@ export function useGame(characters: Character[]) {
   const [singleField, setSingleField] = useState<ComparableField>(() => randomFields(1)[0]);
   const [revealOrder, setRevealOrder] = useState<ComparableField[]>(() => randomFields(COMPARABLE_FIELDS.length));
   const guessedIds = useMemo(() => new Set(guesses.map(result => result.character.id)), [guesses]);
-  const maxGuesses = mode === 'coward' ? SUPER_COWARD_MAX_GUESSES : MAX_GUESSES;
+  const maxGuesses = maxGuessesForMode(mode);
   function reset(nextMode: GameMode = mode) {
     setAnswer(current => randomCharacter(characters, current?.id));
     setGuesses([]);

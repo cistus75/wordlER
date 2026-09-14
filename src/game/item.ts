@@ -25,7 +25,7 @@ export function normalizeSkillGroup(group: string): string {
 export function hiddenItemFields(mode: import('../types').GameMode, guessIndex: number, singleField: ItemField, revealOrder = ITEM_FIELDS): ItemField[] {
   if (mode === 'sealed') return shuffledItemFields().slice(0, 2);
   if (mode === 'fog') return revealOrder.slice(Math.min(guessIndex + 1, revealOrder.length));
-  if (mode === 'single') return ITEM_FIELDS.filter(field => field !== singleField);
+  if (mode === 'single' || mode === 'manly') return ITEM_FIELDS.filter(field => field !== singleField);
   return [];
 }
 

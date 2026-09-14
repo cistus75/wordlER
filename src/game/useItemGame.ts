@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { GameMode, GameStatus, ItemField, ItemGuessResult, NormalizedItem } from '../types';
 import { buildItemGuessHints, hiddenItemFields, isCorrectItemGuess, shuffledItemFields } from './item';
-import { MAX_GUESSES, SUPER_COWARD_MAX_GUESSES } from './useGame';
+import { maxGuessesForMode } from './useGame';
 
 function randomItem(items: NormalizedItem[], previousCode?: number): NormalizedItem | null {
   const candidates = items.length > 1 ? items.filter(item => item.code !== previousCode) : items;
@@ -16,7 +16,7 @@ export function useItemGame(items: NormalizedItem[]) {
   const [singleField, setSingleField] = useState<ItemField>(() => shuffledItemFields()[0]);
   const [revealOrder, setRevealOrder] = useState<ItemField[]>(shuffledItemFields);
   const guessedCodes = useMemo(() => new Set(guesses.map(result => result.item.code)), [guesses]);
-  const maxGuesses = mode === 'coward' ? SUPER_COWARD_MAX_GUESSES : MAX_GUESSES;
+  const maxGuesses = maxGuessesForMode(mode);
 
   function reset(nextMode: GameMode = mode) {
     setAnswer(current => randomItem(items, current?.code));

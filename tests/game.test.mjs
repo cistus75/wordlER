@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { searchCharacters } from '../src/game/search.ts';
 import { buildGuessHints, compareNumber, compareRisk, compareSet, hiddenFields, isCorrectGuess, randomFields } from '../src/game/compare.ts';
+import { maxGuessesForMode } from '../src/game/useGame.ts';
 import { applyGameResult, clearStats, emptyStats, getStatsStorageKey, loadStats, recordGame } from '../src/game/stats.ts';
 import { buildItemGuessHints, compareItemEffects, compareItemOptions, hiddenItemFields, isCorrectItemGuess, ITEM_FIELDS, normalizeItem, normalizeSkillGroup, searchItems } from '../src/game/item.ts';
 const characters = JSON.parse(readFileSync(new URL('../characters.json', import.meta.url), 'utf8').replace(/^\uFEFF/, ''));
@@ -13,6 +14,12 @@ assert.equal(compareSet(['검'], ['활']), 'wrong');
 assert.equal(compareNumber(17, 26), 'higher');
 assert.equal(compareNumber(190, 160), 'lower');
 assert.equal(compareNumber(null, 20), 'wrong');
+const random = Math.random;
+Math.random = () => 0;
+assert.equal(compareNumber(20, null), 'higher');
+Math.random = () => 1;
+assert.equal(compareNumber(20, null), 'lower');
+Math.random = random;
 assert.equal(compareNumber(null, null), 'exact');
 assert.equal(compareRisk('C', 'A'), 'higher');
 assert.equal(compareRisk('B', 'D'), 'lower');
@@ -42,6 +49,8 @@ for (let turn = 1; turn < characterRevealed.length; turn++) {
 }
 assert.deepEqual(hiddenFields('single', 0, 'roles'), ['weapons', 'age', 'height', 'risk']);
 assert.deepEqual(hiddenFields('single', 3, 'roles'), ['weapons', 'age', 'height', 'risk']);
+assert.deepEqual(hiddenFields('manly', 0, 'roles'), ['weapons', 'age', 'height', 'risk']);
+assert.equal(maxGuessesForMode('manly'), 3);
 console.log(`Passed comparison and dataset checks for ${characters.length} characters.`);
 
 assert.equal(searchCharacters(characters, 'ㅈㅋ')[0].id, 'Jackie');
@@ -148,9 +157,13 @@ for (let turn = 1; turn < itemRevealed.length; turn++) {
 }
 assert.equal(itemRevealed.at(-1).size, ITEM_FIELDS.length);
 assert.deepEqual(hiddenItemFields('single', 0, 'category'), ['grade', 'type', 'options', 'uniqueEffect']);
+assert.deepEqual(hiddenItemFields('manly', 0, 'category'), ['grade', 'type', 'options', 'uniqueEffect']);
 const normalizedItems = rawItems.map(normalizeItem);
 const isol = characters.find(character => character.id === 'Isol');
 assert.equal(isol.age, 16);
+const henry = characters.find(character => character.id === 'Henry');
+assert.equal(henry.age, null);
+assert.ok(['higher', 'lower'].includes(buildGuessHints(characters[0], henry).age.status));
 const namedItem = name => normalizedItems.find(item => item.name === name);
 const jinEunDress = namedItem('진은 드레스');
 assert.deepEqual(namedItem('검은 베일').optionLabels, ['쿨다운 감소', '기동성']);
