@@ -6,7 +6,7 @@ export const GAME_MODES: { id: GameMode; label: string; description: string }[] 
   { id: 'fog', label: '안개', description: '매 추측마다 속성이 하나씩 열려요.' },
   { id: 'single', label: '단일', description: '한 판 동안 무작위 속성 하나만 보여요.' },
   { id: 'coward', label: '슈퍼겁쟁이', description: '허접~ 허접~ 이것도 못 맞추는 허접 유저~' },
-  { id: 'manly', label: '사나이클럽', description: '속성 하나만 보고 3번 안에 맞혀요.' },
+  { id: 'manly', label: '사나이클럽', description: '겁쟁이 출입 금지.' },
 ];
 export const HINT_STATUSES: Record<HintStatus, string> = {
   exact: '일치', partial: '일부 일치', wrong: '다름', higher: '정답이 더 높음', lower: '정답이 더 낮음',
