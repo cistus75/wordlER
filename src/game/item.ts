@@ -1,5 +1,6 @@
 import type { HintStatus, ItemField, ItemGuessHints, ItemGrade, NormalizedItem, WordlerItem } from '../types';
 import { searchEntries } from './search.ts';
+import { shuffle } from './shuffle.ts';
 
 export const ITEM_FIELDS: ItemField[] = ['category', 'grade', 'type', 'options', 'uniqueEffect'];
 export const ITEM_LABELS: Record<ItemField, string> = {
@@ -21,15 +22,15 @@ export function normalizeSkillGroup(group: string): string {
   return group.replace(/\[[^\]]+\]/g, '').trim();
 }
 
-export function hiddenItemFields(mode: import('../types').GameMode, guessIndex: number, singleField: ItemField): ItemField[] {
+export function hiddenItemFields(mode: import('../types').GameMode, guessIndex: number, singleField: ItemField, revealOrder = ITEM_FIELDS): ItemField[] {
   if (mode === 'sealed') return shuffledItemFields().slice(0, 2);
-  if (mode === 'fog') return shuffledItemFields().slice(0, ITEM_FIELDS.length - Math.min(guessIndex + 1, ITEM_FIELDS.length));
+  if (mode === 'fog') return revealOrder.slice(Math.min(guessIndex + 1, revealOrder.length));
   if (mode === 'single') return ITEM_FIELDS.filter(field => field !== singleField);
   return [];
 }
 
 export function shuffledItemFields(): ItemField[] {
-  return [...ITEM_FIELDS].sort(() => Math.random() - .5);
+  return shuffle(ITEM_FIELDS);
 }
 
 export function normalizeItem(item: WordlerItem): NormalizedItem {
@@ -61,7 +62,8 @@ export function compareItemOptions(guess: string[], answer: string[]): HintStatu
 
 export function compareItemEffects(guess: string[], answer: string[]): HintStatus {
   if (sameSet(guess, answer)) return 'exact';
-  return guess.length && answer.length ? 'partial' : 'wrong';
+  const effects = new Set(answer);
+  return guess.some(value => effects.has(value)) ? 'partial' : 'wrong';
 }
 
 export function buildItemGuessHints(guess: NormalizedItem, answer: NormalizedItem): ItemGuessHints {

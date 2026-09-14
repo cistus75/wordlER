@@ -14,6 +14,7 @@ export function useItemGame(items: NormalizedItem[]) {
   const [guesses, setGuesses] = useState<ItemGuessResult[]>([]);
   const [status, setStatus] = useState<GameStatus>('playing');
   const [singleField, setSingleField] = useState<ItemField>(() => shuffledItemFields()[0]);
+  const [revealOrder, setRevealOrder] = useState<ItemField[]>(shuffledItemFields);
   const guessedCodes = useMemo(() => new Set(guesses.map(result => result.item.code)), [guesses]);
   const maxGuesses = mode === 'coward' ? SUPER_COWARD_MAX_GUESSES : MAX_GUESSES;
 
@@ -23,6 +24,7 @@ export function useItemGame(items: NormalizedItem[]) {
     setStatus('playing');
     setModeState(nextMode);
     setSingleField(shuffledItemFields()[0]);
+    setRevealOrder(shuffledItemFields());
   }
 
   function setMode(nextMode: GameMode) {
@@ -33,7 +35,7 @@ export function useItemGame(items: NormalizedItem[]) {
     if (!answer || status !== 'playing' || guessedCodes.has(item.code)) return null;
     const hints = buildItemGuessHints(item, answer);
     const correct = isCorrectItemGuess(item, answer);
-    const result = { item, hints, hiddenFields: hiddenItemFields(mode, guesses.length, singleField), sameProfile: !correct && Object.values(hints).every(hint => hint.status === 'exact') };
+    const result = { item, hints, hiddenFields: hiddenItemFields(mode, guesses.length, singleField, revealOrder), sameProfile: !correct && Object.values(hints).every(hint => hint.status === 'exact') };
     setGuesses([...guesses, result]);
     if (correct) setStatus('won');
     else if (guesses.length + 1 >= maxGuesses) setStatus('lost');

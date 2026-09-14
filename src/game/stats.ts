@@ -1,3 +1,5 @@
+import { safeStorageGet, safeStorageRemove, safeStorageSet } from './storage.ts';
+
 export interface GameStats {
   played: number;
   wins: number;
@@ -6,8 +8,21 @@ export interface GameStats {
   distribution: number[];
 }
 
-const STORAGE_KEY = 'wordler:stats:v1';
-const DISTRIBUTION_SIZE = 10;
+export type GameKind = 'character' | 'item';
+
+const STORAGE_KEYS: Record<GameKind, string> = {
+  character: 'wordler:stats:character:v1',
+  item: 'wordler:stats:item:v1',
+};
+export const DISTRIBUTION_SIZE = 10;
+
+export function getStatsStorageKey(kind: GameKind): string {
+  return STORAGE_KEYS[kind];
+}
+
+function nonNegativeInteger(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && value >= 0 ? value : 0;
+}
 
 export function emptyStats(): GameStats {
   return { played: 0, wins: 0, currentStreak: 0, maxStreak: 0, distribution: Array(DISTRIBUTION_SIZE).fill(0) };
@@ -26,23 +41,31 @@ export function applyGameResult(stats: GameStats, won: boolean, attempts: number
   };
 }
 
-export function loadStats(): GameStats {
+export function loadStats(kind: GameKind): GameStats {
   try {
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null');
-    if (!stored || !Array.isArray(stored.distribution)) return emptyStats();
-    return { ...emptyStats(), ...stored, distribution: [...stored.distribution, ...Array(DISTRIBUTION_SIZE).fill(0)].slice(0, DISTRIBUTION_SIZE) };
+    const stored: unknown = JSON.parse(safeStorageGet(STORAGE_KEYS[kind]) ?? 'null');
+    if (!stored || typeof stored !== 'object') return emptyStats();
+    const value = stored as Record<string, unknown>;
+    const distribution = Array.isArray(value.distribution) ? value.distribution : [];
+    return {
+      played: nonNegativeInteger(value.played),
+      wins: nonNegativeInteger(value.wins),
+      currentStreak: nonNegativeInteger(value.currentStreak),
+      maxStreak: nonNegativeInteger(value.maxStreak),
+      distribution: Array.from({ length: DISTRIBUTION_SIZE }, (_, index) => nonNegativeInteger(distribution[index])),
+    };
   } catch {
     return emptyStats();
   }
 }
 
-export function recordGame(stats: GameStats, won: boolean, attempts: number) {
-  const next = applyGameResult(stats, won, attempts);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+export function recordGame(kind: GameKind, won: boolean, attempts: number): GameStats {
+  const next = applyGameResult(loadStats(kind), won, attempts);
+  safeStorageSet(STORAGE_KEYS[kind], JSON.stringify(next));
   return next;
 }
 
-export function clearStats() {
-  localStorage.removeItem(STORAGE_KEY);
+export function clearStats(kind: GameKind): GameStats {
+  safeStorageRemove(STORAGE_KEYS[kind]);
   return emptyStats();
 }

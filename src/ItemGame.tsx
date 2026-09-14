@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { items } from './data/items';
 import { ITEM_FIELDS, ITEM_LABELS, searchItems } from './game/item';
+import { SEARCH_QUERY_MAX_LENGTH } from './game/search';
 import { useItemGame } from './game/useItemGame';
 import { GAME_MODES, HINT_LEGEND, HINT_STATUSES, HINT_SYMBOLS } from './game/ui';
 import type { NormalizedItem } from './types';
@@ -17,10 +18,10 @@ export default function ItemGame({ onFinished }: { onFinished: (won: boolean, at
   const [error, setError] = useState('');
   const input = useRef<HTMLInputElement>(null);
   const successDialog = useRef<HTMLDialogElement>(null);
-  const matches = searchItems(items, query);
-  const visibleSuggestions = matches.slice(0, 7);
-  const suggestions = visibleSuggestions.filter(item => !game.guessedCodes.has(item.code));
-  const showSuggestions = searchOpen && visibleSuggestions.length > 0 && game.status === 'playing';
+  const nextButton = useRef<HTMLButtonElement>(null);
+  const matches = useMemo(() => searchItems(items, query), [query]);
+  const suggestions = useMemo(() => matches.filter(item => !game.guessedCodes.has(item.code)).slice(0, 7), [matches, game.guessedCodes]);
+  const showSuggestions = searchOpen && suggestions.length > 0 && game.status === 'playing';
   const latest = game.guesses.at(-1);
 
   useEffect(() => {
@@ -28,7 +29,10 @@ export default function ItemGame({ onFinished }: { onFinished: (won: boolean, at
   }, [active, query, showSuggestions]);
 
   useEffect(() => {
-    if (game.status === 'won') successDialog.current?.showModal();
+    if (game.status === 'won') {
+      successDialog.current?.showModal();
+      nextButton.current?.focus({ preventScroll: true });
+    }
   }, [game.status]);
 
   function clearInput() {
@@ -79,7 +83,7 @@ export default function ItemGame({ onFinished }: { onFinished: (won: boolean, at
           <div className="search-area" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setSearchOpen(false); }}>
             <label className="sr-only" htmlFor="item-guess">아이템 이름</label>
             <form onSubmit={event => { event.preventDefault(); submit(suggestions[active]); }}>
-              <input type="search" enterKeyHint="search"
+              <input type="search" enterKeyHint="search" maxLength={SEARCH_QUERY_MAX_LENGTH}
                 id="item-guess" ref={input} value={query} placeholder="이름·초성으로 검색"
                 autoComplete="off" autoCapitalize="none" spellCheck={false} role="combobox"
                 aria-expanded={showSuggestions} aria-controls={showSuggestions ? 'item-suggestions' : undefined}
@@ -102,18 +106,17 @@ export default function ItemGame({ onFinished }: { onFinished: (won: boolean, at
             </form>
             {showSuggestions && (
               <div id="item-suggestions" className="suggestions" role="listbox" aria-label="아이템 검색 결과">
-                {visibleSuggestions.map(item => {
-                  const guessed = game.guessedCodes.has(item.code);
+                {suggestions.map(item => {
                   const highlighted = suggestions[active]?.code === item.code;
                   return (
                   <button
                     id={`item-option-${item.code}`} role="option" type="button" tabIndex={-1}
-                    aria-selected={highlighted} aria-disabled={guessed} disabled={guessed} className={highlighted ? 'highlighted' : ''}
+                    aria-selected={highlighted} className={highlighted ? 'highlighted' : ''}
                     key={item.code} onMouseDown={event => event.preventDefault()} onClick={() => submit(item)}
                   >
                     <img src={item.image} width="38" height="38" alt="" />
                     <span className="suggestion-name"><strong>{item.name}</strong><small>{item.englishName} · {item.gradeLabel} · {item.categoryLabel}</small></span>
-                    <span className={guessed ? 'suggestion-state' : 'suggestion-enter'} aria-hidden="true">{guessed ? '이미 추측함' : '↵'}</span>
+                    <span className="suggestion-enter" aria-hidden="true">↵</span>
                   </button>
                   );
                 })}
@@ -184,7 +187,7 @@ export default function ItemGame({ onFinished }: { onFinished: (won: boolean, at
             <div className="success-copy">
               <span className="success-label">정답입니다</span><h2>{game.answer.name}</h2>
               <dl><div><dt>도전 횟수</dt><dd>{game.guesses.length} / {game.maxGuesses}</dd></div><div><dt>게임 모드</dt><dd>{GAME_MODES.find(mode => mode.id === game.mode)?.label} 모드</dd></div></dl>
-              <button onClick={next}>다시하기 <span aria-hidden="true">→</span></button>
+              <button ref={nextButton} onClick={next}>다시하기 <span aria-hidden="true">→</span></button>
             </div>
           </div>
         )}

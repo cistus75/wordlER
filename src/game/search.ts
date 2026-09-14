@@ -1,5 +1,7 @@
 import type { Character } from '../types';
 
+export const SEARCH_QUERY_MAX_LENGTH = 100;
+
 const initials = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
 const medials = ['ㅏ', 'ㅐ', 'ㅑ', 'ㅒ', 'ㅓ', 'ㅔ', 'ㅕ', 'ㅖ', 'ㅗ', 'ㅗㅏ', 'ㅗㅐ', 'ㅗㅣ', 'ㅛ', 'ㅜ', 'ㅜㅓ', 'ㅜㅔ', 'ㅜㅣ', 'ㅠ', 'ㅡ', 'ㅡㅣ', 'ㅣ'];
 const finals = ['', 'ㄱ', 'ㄲ', 'ㄱㅅ', 'ㄴ', 'ㄴㅈ', 'ㄴㅎ', 'ㄷ', 'ㄹ', 'ㄹㄱ', 'ㄹㅁ', 'ㄹㅂ', 'ㄹㅅ', 'ㄹㅌ', 'ㄹㅍ', 'ㄹㅎ', 'ㅁ', 'ㅂ', 'ㅂㅅ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'];
@@ -30,34 +32,36 @@ function expandCompoundJamo(text: string) {
   return [...text].map(letter => compoundJamo.get(letter) ?? letter).join('');
 }
 
-function editDistance(a: string, b: string) {
-  let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
-  for (let row = 1; row <= a.length; row++) {
-    const current = [row];
-    for (let column = 1; column <= b.length; column++) {
-      current[column] = Math.min(
-        current[column - 1] + 1,
-        previous[column] + 1,
-        previous[column - 1] + (a[row - 1] === b[column - 1] ? 0 : 1),
-      );
+function isWithinOneEdit(a: string, b: string) {
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let left = 0;
+  let right = 0;
+  let edits = 0;
+  while (left < a.length && right < b.length) {
+    if (a[left] === b[right]) {
+      left++;
+      right++;
+    } else {
+      if (++edits > 1) return false;
+      if (a.length >= b.length) left++;
+      if (b.length >= a.length) right++;
     }
-    previous = current;
   }
-  return previous[b.length];
+  return edits + Number(left < a.length || right < b.length) <= 1;
 }
 
 export function searchEntries<T>(entries: T[], query: string, aliases: (entry: T) => string[]): T[] {
   const value = normalize(query);
   if (!value) return [];
+  const valueJamo = toJamo(value);
+  const typedAsEnglish = /^[a-z]+$/.test(value);
+  const keyboardJamo = typedAsEnglish ? keyboardToJamo(value) : '';
+  const initialValue = expandCompoundJamo(value);
 
   return entries.map(entry => {
     const names = aliases(entry).map(normalize);
     const name = names[0];
     const nameJamo = toJamo(name);
-    const valueJamo = toJamo(value);
-    const typedAsEnglish = /^[a-z]+$/.test(value);
-    const keyboardJamo = typedAsEnglish ? keyboardToJamo(value) : '';
-    const initialValue = expandCompoundJamo(value);
     const first = [...name].map(letter => {
       const code = letter.charCodeAt(0) - 44032;
       return code >= 0 && code <= 11171 ? initials[Math.floor(code / 588)] : letter;
@@ -74,7 +78,7 @@ export function searchEntries<T>(entries: T[], query: string, aliases: (entry: T
       : keyboardJamo && nameJamo.includes(keyboardJamo) ? 2
       : keyboardJamo && first.startsWith(keyboardJamo) ? 3
       : keyboardJamo && first.includes(keyboardJamo) ? 4
-      : typedAsEnglish && value.length >= 4 && editDistance(nameJamo, keyboardJamo) <= 1 ? 3 : -1;
+      : typedAsEnglish && value.length >= 4 && isWithinOneEdit(nameJamo, keyboardJamo) ? 3 : -1;
     const koreanRank = Math.min(
       jamoRank < 0 ? Infinity : jamoRank + 3,
       keyboardRank < 0 ? Infinity : keyboardRank + 3,
