@@ -7,7 +7,7 @@
   {"id":"Nadine","name":"나딘","roles":["원거리딜러","스킬딜러"],"weapons":["활","석궁"],"age":21,"height":178,"risk":"D"},
   {"id":"Zahir","name":"자히르","roles":["스킬딜러"],"weapons":["투척","암기"],"age":18,"height":175,"risk":"B"},
   {"id":"Hart","name":"하트","roles":["원거리딜러"],"weapons":["기타"],"age":23,"height":175,"risk":"E"},
-  {"id":"Isol","name":"아이솔","roles":["원거리딜러","스킬딜러"],"weapons":["권총","돌격소총"],"age":18,"height":167,"risk":"C"},
+  {"id":"Isol","name":"아이솔","roles":["원거리딜러","스킬딜러"],"weapons":["권총","돌격소총"],"age":16,"height":167,"risk":"C"},
   {"id":"LiDailin","name":"리 다이린","roles":["전사"],"weapons":["글러브","쌍절곤"],"age":26,"height":165,"risk":"D"},
   {"id":"Yuki","name":"유키","roles":["전사"],"weapons":["양손검","쌍검"],"age":18,"height":171,"risk":"E"},
   {"id":"Hyejin","name":"혜진","roles":["스킬딜러"],"weapons":["활","암기"],"age":18,"height":163,"risk":"E"},

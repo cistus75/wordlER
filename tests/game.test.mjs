@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { searchCharacters } from '../src/game/search.ts';
 import { buildGuessHints, compareNumber, compareRisk, compareSet, hiddenFields, isCorrectGuess, randomFields } from '../src/game/compare.ts';
-import { applyGameResult, emptyStats } from '../src/game/stats.ts';
-import { buildItemGuessHints, compareItemEffects, compareItemOptions, hiddenItemFields, isCorrectItemGuess, normalizeItem, normalizeSkillGroup, searchItems } from '../src/game/item.ts';
+import { applyGameResult, clearStats, emptyStats, getStatsStorageKey, loadStats, recordGame } from '../src/game/stats.ts';
+import { buildItemGuessHints, compareItemEffects, compareItemOptions, hiddenItemFields, isCorrectItemGuess, ITEM_FIELDS, normalizeItem, normalizeSkillGroup, searchItems } from '../src/game/item.ts';
 const characters = JSON.parse(readFileSync(new URL('../characters.json', import.meta.url), 'utf8').replace(/^\uFEFF/, ''));
 const rawItems = JSON.parse(readFileSync(new URL('../wordler_items.json', import.meta.url), 'utf8').replace(/^\uFEFF/, ''));
 assert.equal(new Set(characters.map(c => c.id)).size, characters.length);
@@ -34,6 +34,12 @@ assert.equal(hiddenFields('sealed', 0, 'roles').length, 2);
 assert.equal(hiddenFields('fog', 0, 'roles').length, 4);
 assert.equal(hiddenFields('fog', 1, 'roles').length, 3);
 assert.equal(hiddenFields('fog', 4, 'roles').length, 0);
+const characterRevealOrder = ['age', 'weapons', 'risk', 'roles', 'height'];
+const characterRevealed = characterRevealOrder.map((_, turn) => new Set(characterRevealOrder.filter(field => !hiddenFields('fog', turn, 'roles', characterRevealOrder).includes(field))));
+for (let turn = 1; turn < characterRevealed.length; turn++) {
+  assert.ok([...characterRevealed[turn - 1]].every(field => characterRevealed[turn].has(field)));
+  assert.equal(characterRevealed[turn].size, characterRevealed[turn - 1].size + 1);
+}
 assert.deepEqual(hiddenFields('single', 0, 'roles'), ['weapons', 'age', 'height', 'risk']);
 assert.deepEqual(hiddenFields('single', 3, 'roles'), ['weapons', 'age', 'height', 'risk']);
 console.log(`Passed comparison and dataset checks for ${characters.length} characters.`);
@@ -64,6 +70,34 @@ assert.equal(stats.maxStreak, 2);
 assert.deepEqual(stats.distribution, [1, 0, 1, 0, 0, 0, 0, 0, 0, 0]);
 console.log('Passed local game statistics checks.');
 
+const storedValues = new Map();
+Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: {
+  getItem: key => storedValues.get(key) ?? null,
+  setItem: (key, value) => storedValues.set(key, String(value)),
+  removeItem: key => storedValues.delete(key),
+  clear: () => storedValues.clear(),
+  key: index => [...storedValues.keys()][index] ?? null,
+  get length() { return storedValues.size; },
+} });
+localStorage.clear();
+recordGame('character', true, 2);
+assert.equal(loadStats('character').played, 1);
+assert.equal(loadStats('item').played, 0);
+recordGame('item', true, 1);
+recordGame('character', false, 5);
+assert.equal(loadStats('item').currentStreak, 1);
+recordGame('item', false, 5);
+assert.equal(loadStats('character').currentStreak, 0);
+clearStats('character');
+assert.equal(loadStats('character').played, 0);
+assert.equal(loadStats('item').played, 2);
+localStorage.setItem(getStatsStorageKey('character'), '{"played":"3","wins":null,"currentStreak":-1,"maxStreak":1.5,"distribution":[2,-1,"4",null,1]}');
+const sanitizedStats = loadStats('character');
+assert.deepEqual([sanitizedStats.played, sanitizedStats.wins, sanitizedStats.currentStreak, sanitizedStats.maxStreak], [0, 0, 0, 0]);
+assert.equal(sanitizedStats.distribution.length, 10);
+assert.deepEqual(sanitizedStats.distribution.slice(0, 5), [2, 0, 0, 0, 1]);
+console.log('Passed separated and sanitized stored statistics checks.');
+
 assert.equal(rawItems.length, 477);
 for (const code of [102504, 108506, 130504, 202531]) {
   assert.equal(rawItems.find(item => item.code === code)?.image, `/item-images/${code}.png`);
@@ -90,9 +124,11 @@ assert.equal(compareItemOptions([], []), 'exact');
 assert.equal(compareItemOptions([], ['A']), 'wrong');
 assert.equal(compareItemEffects([], []), 'exact');
 assert.equal(compareItemEffects([], ['열정']), 'wrong');
+assert.equal(compareItemEffects(['열정'], []), 'wrong');
 assert.equal(compareItemEffects(['열정'], ['열정']), 'exact');
-assert.equal(compareItemEffects(['열정'], ['저주']), 'partial');
+assert.equal(compareItemEffects(['열정'], ['저주']), 'wrong');
 assert.equal(compareItemEffects(['A'], ['A', 'B']), 'partial');
+assert.equal(compareItemEffects(['A', 'B'], ['B', 'A']), 'exact');
 assert.equal(normalizeSkillGroup('의념[데스애더]'), '의념');
 assert.equal(normalizeSkillGroup('예열 - 증강'), '예열 - 증강');
 assert.ok(isCorrectItemGuess(item({ code: 7 }), item({ code: 7 })));
@@ -104,8 +140,39 @@ assert.equal(hiddenItemFields('classic', 0, 'category').length, 0);
 assert.equal(hiddenItemFields('sealed', 0, 'category').length, 2);
 assert.equal(hiddenItemFields('fog', 0, 'category').length, 4);
 assert.equal(hiddenItemFields('fog', 4, 'category').length, 0);
+const itemRevealOrder = ['grade', 'options', 'category', 'uniqueEffect', 'type'];
+const itemRevealed = itemRevealOrder.map((_, turn) => new Set(itemRevealOrder.filter(field => !hiddenItemFields('fog', turn, 'category', itemRevealOrder).includes(field))));
+for (let turn = 1; turn < itemRevealed.length; turn++) {
+  assert.ok([...itemRevealed[turn - 1]].every(field => itemRevealed[turn].has(field)));
+  assert.equal(itemRevealed[turn].size, itemRevealed[turn - 1].size + 1);
+}
+assert.equal(itemRevealed.at(-1).size, ITEM_FIELDS.length);
 assert.deepEqual(hiddenItemFields('single', 0, 'category'), ['grade', 'type', 'options', 'uniqueEffect']);
 const normalizedItems = rawItems.map(normalizeItem);
+const isol = characters.find(character => character.id === 'Isol');
+assert.equal(isol.age, 16);
+const namedItem = name => normalizedItems.find(item => item.name === name);
+const jinEunDress = namedItem('진은 드레스');
+assert.deepEqual(namedItem('검은 베일').optionLabels, ['쿨다운 감소', '기동성']);
+assert.deepEqual(namedItem('레이싱 헬멧').optionLabels, ['공격 속도', '쿨다운 감소']);
+assert.deepEqual(namedItem('백야의 관').optionLabels, ['쿨다운 감소']);
+assert.deepEqual(namedItem('엘프 드레스').optionLabels, ['쿨다운 감소']);
+assert.deepEqual(namedItem('오니 가면').optionLabels, ['공격 속도', '최대 체력']);
+assert.deepEqual(namedItem('와일드 워커').optionLabels, ['쿨다운 감소', '방어']);
+assert.deepEqual(namedItem('롤리팝').optionLabels, ['최대 체력']);
+assert.deepEqual(namedItem('블루3').optionLabels, ['치명타']);
+assert.deepEqual([namedItem('에스프리').mainTypeLabel, ...namedItem('에스프리').optionLabels], ['스킬']);
+assert.deepEqual(namedItem('윈드러너').optionLabels, ['방어']);
+assert.deepEqual(namedItem('운명의 고리').optionLabels, ['최대 체력']);
+assert.deepEqual(namedItem('은둔자').optionLabels, ['스킬 증폭']);
+assert.deepEqual(namedItem('더 문').optionLabels, ['스킬 증폭']);
+assert.deepEqual(namedItem('더 데스-진홍').optionLabels, ['방어 관통']);
+assert.deepEqual(namedItem('큐브 워치').optionLabels, ['공격 속도', '쿨다운 감소', '치명타']);
+assert.equal(buildItemGuessHints(namedItem('칼날 다리'), jinEunDress).options.status, 'exact');
+assert.equal(buildItemGuessHints(namedItem('에메랄드 타블렛'), jinEunDress).options.status, 'partial');
+assert.equal(buildItemGuessHints(namedItem('위도우 메이커'), jinEunDress).options.status, 'partial');
+assert.equal(buildItemGuessHints(namedItem('엘프 드레스'), jinEunDress).options.status, 'partial');
+assert.equal(buildItemGuessHints(namedItem('레이싱 헬멧'), jinEunDress).options.status, 'partial');
 const fieldThorn = normalizedItems.find(item => item.code === 120504);
 assert.ok(fieldThorn);
 assert.deepEqual([fieldThorn.name, fieldThorn.englishName, fieldThorn.categoryLabel, fieldThorn.gradeLabel, fieldThorn.mainTypeLabel, fieldThorn.effectGroups[0]], ['필드 쏜', 'Field Thorn', '무기 · 레이피어', '전설', '스킬', '신속']);
