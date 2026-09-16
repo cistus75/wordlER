@@ -3,6 +3,9 @@ import { searchEntries } from './search.ts';
 import { shuffle } from './shuffle.ts';
 
 export const ITEM_FIELDS: ItemField[] = ['category', 'grade', 'type', 'options', 'uniqueEffect'];
+export function itemGuessCost(guess: { sameProfile: boolean; hiddenFields: ItemField[] }): number {
+  return guess.sameProfile && guess.hiddenFields.length === 0 ? 0 : 1;
+}
 export const ITEM_LABELS: Record<ItemField, string> = {
   category: '종류', grade: '등급', type: '유형', options: '옵션', uniqueEffect: '고유 효과',
 };

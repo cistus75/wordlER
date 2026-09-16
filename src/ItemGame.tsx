@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { items } from './data/items';
-import { ITEM_FIELDS, ITEM_LABELS, searchItems } from './game/item';
+import { ITEM_FIELDS, ITEM_LABELS, itemGuessCost, searchItems } from './game/item';
 import { SEARCH_QUERY_MAX_LENGTH } from './game/search';
 import { useItemGame } from './game/useItemGame';
 import { GAME_MODES, HINT_LEGEND, HINT_STATUSES, HINT_SYMBOLS } from './game/ui';
-import type { NormalizedItem } from './types';
+import type { GameMode, NormalizedItem } from './types';
 
 function valueText(value: string | string[]) {
   return Array.isArray(value) ? value.join(' · ') : value;
 }
 
-export default function ItemGame({ onFinished }: { onFinished: (won: boolean, attempts: number) => void }) {
+export default function ItemGame({ onFinished }: { onFinished: (won: boolean, attempts: number, mode: GameMode) => void }) {
   const game = useItemGame(items);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
@@ -46,10 +46,11 @@ export default function ItemGame({ onFinished }: { onFinished: (won: boolean, at
 
   function submit(item?: NormalizedItem) {
     if (!item) { setError('목록에서 아이템을 선택해주세요.'); return; }
-    if (game.submitGuess(item)) {
+    const result = game.submitGuess(item);
+    if (result) {
       const won = game.answer?.code === item.code;
-      const attempts = game.guesses.length + 1;
-      if (won || attempts === game.maxGuesses) onFinished(won, attempts);
+      const attempts = game.attempts + itemGuessCost(result);
+      if (won || attempts === game.maxGuesses) onFinished(won, attempts, game.mode);
       clearInput();
       input.current?.focus({ preventScroll: true });
     }
@@ -128,7 +129,7 @@ export default function ItemGame({ onFinished }: { onFinished: (won: boolean, at
             <p id="item-search-message" className="input-note" role="status">{searchMessage}</p>
           </div>
           <div className="input-bottom">
-            <span className="chances">남은 기회 <strong>{game.maxGuesses - game.guesses.length}</strong><small>/ {game.maxGuesses}</small></span>
+            <span className="chances">남은 기회 <strong>{game.maxGuesses - game.attempts}</strong><small>/ {game.maxGuesses}</small></span>
             <button className="random" onClick={() => {
               const remaining = items.filter(item => !game.guessedCodes.has(item.code));
               submit(remaining[Math.floor(Math.random() * remaining.length)]);
@@ -139,7 +140,7 @@ export default function ItemGame({ onFinished }: { onFinished: (won: boolean, at
         <div className={`result ${game.status}`}>
           <img src={game.answer.image} width="64" height="64" alt="" />
           <div className="result-copy" role="status">
-            <p>{game.status === 'won' ? `${game.guesses.length}번 만에 찾았어요!` : '정답은'}</p>
+            <p>{game.status === 'won' ? `${game.attempts}번 만에 찾았어요!` : '정답은'}</p>
             <h2>{game.answer.name}</h2>
           </div>
           <button ref={game.status === 'lost' ? nextButton : undefined} onClick={next}>다시하기 <span aria-hidden="true">→</span></button>
@@ -150,7 +151,7 @@ export default function ItemGame({ onFinished }: { onFinished: (won: boolean, at
         {HINT_LEGEND.map(entry => <span className={entry.className} key={entry.text}>{entry.text}</span>)}
       </div>
       <p className="sr-only" aria-live="polite" aria-atomic="true">
-        {game.status === 'playing' && latest ? `${latest.item.name} 추측 완료. ${game.maxGuesses - game.guesses.length}번 남았습니다.` : ''}
+        {game.status === 'playing' && latest ? `${latest.item.name} 추측 완료. ${game.maxGuesses - game.attempts}번 남았습니다.` : ''}
       </p>
       <div className="results">
         {[...game.guesses].reverse().map((guess, index) => (
@@ -175,7 +176,7 @@ export default function ItemGame({ onFinished }: { onFinished: (won: boolean, at
                 </div>
               ))}
             </dl>
-            {guess.sameProfile && guess.hiddenFields.length === 0 && <p className="same-profile">정답과 동일한 아이템 구조입니다.</p>}
+            {itemGuessCost(guess) === 0 && <p className="same-profile">모든 속성이 같아 기회를 차감하지 않았어요.</p>}
           </article>
         ))}
       </div>
@@ -188,7 +189,7 @@ export default function ItemGame({ onFinished }: { onFinished: (won: boolean, at
             <div className="success-art"><img src={game.answer.image} alt={`${game.answer.name} 아이콘`} /></div>
             <div className="success-copy">
               <span className="success-label">정답입니다</span><h2>{game.answer.name}</h2>
-              <dl><div><dt>도전 횟수</dt><dd>{game.guesses.length} / {game.maxGuesses}</dd></div><div><dt>게임 모드</dt><dd>{GAME_MODES.find(mode => mode.id === game.mode)?.label} 모드</dd></div></dl>
+              <dl><div><dt>도전 횟수</dt><dd>{game.attempts} / {game.maxGuesses}</dd></div><div><dt>게임 모드</dt><dd>{GAME_MODES.find(mode => mode.id === game.mode)?.label} 모드</dd></div></dl>
               <button ref={nextButton} onClick={next}>다시하기 <span aria-hidden="true">→</span></button>
             </div>
           </div>

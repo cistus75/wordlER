@@ -6,7 +6,7 @@ import { SEARCH_QUERY_MAX_LENGTH, searchCharacters } from './game/search';
 import { clearStats, getStatsStorageKey, loadStats, recordGame, type GameKind } from './game/stats';
 import { safeStorageGet, safeStorageSet } from './game/storage';
 import { GAME_MODES, HINT_LEGEND, HINT_STATUSES, HINT_SYMBOLS } from './game/ui';
-import type { ComparableField, Character } from './types';
+import type { ComparableField, Character, GameMode } from './types';
 import PatchNotesDialog from './patch-notes/PatchNotesDialog';
 import './styles.css';
 
@@ -45,9 +45,10 @@ export default function App() {
   const statsDialog = useRef<HTMLDialogElement>(null);
   const patchNotesDialog = useRef<HTMLDialogElement>(null);
   const focusNextRound = useRef(false);
-  const [statsByKind, setStatsByKind] = useState(() => ({ character: loadStats('character'), item: loadStats('item') }));
+  const [statsRevision, setStatsRevision] = useState(0);
+  const [statsMode, setStatsMode] = useState<GameMode | 'all'>('all');
   const [theme, setTheme] = useState<Theme>(initialTheme);
-  const stats = statsByKind[gameKind];
+  const stats = useMemo(() => loadStats(gameKind, statsMode === 'all' ? undefined : statsMode), [gameKind, statsMode, statsRevision]);
   const matches = useMemo(() => searchCharacters(characters, query), [query]);
   const suggestions = useMemo(() => matches.filter(character => !game.guessedIds.has(character.id)).slice(0, 7), [matches, game.guessedIds]);
   const showSuggestions = searchOpen && suggestions.length > 0 && game.status === 'playing';
@@ -71,12 +72,8 @@ export default function App() {
 
   useEffect(() => {
     function syncStats(event: StorageEvent) {
-      if (event.key === null) {
-        setStatsByKind({ character: loadStats('character'), item: loadStats('item') });
-        return;
-      }
-      for (const kind of ['character', 'item'] as const) {
-        if (event.key === getStatsStorageKey(kind)) setStatsByKind(current => ({ ...current, [kind]: loadStats(kind) }));
+      if (event.key === null || (['character', 'item'] as const).some(kind => event.key === getStatsStorageKey(kind) || event.key?.startsWith(`${getStatsStorageKey(kind)}:`))) {
+        setStatsRevision(current => current + 1);
       }
     }
     window.addEventListener('storage', syncStats);
@@ -89,9 +86,9 @@ export default function App() {
     safeStorageSet('wordler:theme', theme);
   }, [theme]);
 
-  function finishGame(kind: GameKind, won: boolean, attempts: number) {
-    const nextStats = recordGame(kind, won, attempts);
-    setStatsByKind(current => ({ ...current, [kind]: nextStats }));
+  function finishGame(kind: GameKind, won: boolean, attempts: number, mode: GameMode) {
+    recordGame(kind, won, attempts, mode);
+    setStatsRevision(current => current + 1);
   }
 
   function submit(character?: Character) {
@@ -101,7 +98,7 @@ export default function App() {
       const won = game.answer?.id === character.id;
       const attempts = game.guesses.length + 1;
       if (won || attempts === game.maxGuesses) {
-        finishGame('character', won, attempts);
+        finishGame('character', won, attempts, game.mode);
       }
       setQuery('');
       setError('');
@@ -147,7 +144,7 @@ export default function App() {
           <button className={gameKind === 'item' ? 'active' : ''} aria-pressed={gameKind === 'item'} onClick={() => { setItemVisited(true); setGameKind('item'); }}>아이템</button>
         </div>
         <div hidden={gameKind !== 'item'}>
-          {itemVisited && <Suspense fallback={<p className="empty-board">아이템 게임을 불러오는 중…</p>}><ItemGame onFinished={(won, attempts) => finishGame('item', won, attempts)} /></Suspense>}
+          {itemVisited && <Suspense fallback={<p className="empty-board">아이템 게임을 불러오는 중…</p>}><ItemGame onFinished={(won, attempts, mode) => finishGame('item', won, attempts, mode)} /></Suspense>}
         </div>
         <section className="game" aria-label="실험체 추리" hidden={gameKind !== 'character'}>
           <div className="intro">
@@ -306,8 +303,15 @@ export default function App() {
       <dialog className="stats-dialog" ref={statsDialog} onCancel={() => statsDialog.current?.close()}>
         <div className="stats-content">
           <button className="dialog-close" aria-label="닫기" onClick={() => statsDialog.current?.close()}>×</button>
-          <h2>게임 통계</h2>
+          <h2>{gameKind === 'character' ? '실험체' : '아이템'} 게임 통계</h2>
           <p>이 브라우저의 기기에만 저장됩니다.</p>
+          <div className="mode-tabs stats-filter" role="group" aria-label="통계 모드">
+            <button type="button" className={statsMode === 'all' ? 'active' : ''} aria-pressed={statsMode === 'all'} onClick={() => setStatsMode('all')}>전체</button>
+            {GAME_MODES.map(mode => (
+              <button type="button" key={mode.id} className={statsMode === mode.id ? 'active' : ''} aria-pressed={statsMode === mode.id} onClick={() => setStatsMode(mode.id)}>{mode.label}</button>
+            ))}
+          </div>
+          <p>모드별 통계는 업데이트 이후 플레이부터 집계됩니다. 기존 기록은 전체에 포함됩니다.</p>
           <div className="stats-summary">
             <div><strong>{stats.played}</strong><span>플레이</span></div>
             <div><strong>{stats.played ? Math.round(stats.wins / stats.played * 100) : 0}%</strong><span>승률</span></div>
@@ -330,7 +334,7 @@ export default function App() {
               );
             })}
           </section>
-          <button className="clear-stats" onClick={() => setStatsByKind(current => ({ ...current, [gameKind]: clearStats(gameKind) }))}>기록 삭제</button>
+          <button className="clear-stats" onClick={() => { clearStats(gameKind); setStatsRevision(current => current + 1); }}>{gameKind === 'character' ? '실험체' : '아이템'} 전체 기록 삭제</button>
         </div>
       </dialog>
     </div>

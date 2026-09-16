@@ -1,4 +1,6 @@
 import { safeStorageGet, safeStorageRemove, safeStorageSet } from './storage.ts';
+import type { GameMode } from '../types';
+import { GAME_MODES } from './ui.ts';
 
 export interface GameStats {
   played: number;
@@ -16,8 +18,8 @@ const STORAGE_KEYS: Record<GameKind, string> = {
 };
 export const DISTRIBUTION_SIZE = 10;
 
-export function getStatsStorageKey(kind: GameKind): string {
-  return STORAGE_KEYS[kind];
+export function getStatsStorageKey(kind: GameKind, mode?: GameMode): string {
+  return mode ? `${STORAGE_KEYS[kind]}:${mode}` : STORAGE_KEYS[kind];
 }
 
 function nonNegativeInteger(value: unknown): number {
@@ -41,9 +43,9 @@ export function applyGameResult(stats: GameStats, won: boolean, attempts: number
   };
 }
 
-export function loadStats(kind: GameKind): GameStats {
+export function loadStats(kind: GameKind, mode?: GameMode): GameStats {
   try {
-    const stored: unknown = JSON.parse(safeStorageGet(STORAGE_KEYS[kind]) ?? 'null');
+    const stored: unknown = JSON.parse(safeStorageGet(getStatsStorageKey(kind, mode)) ?? 'null');
     if (!stored || typeof stored !== 'object') return emptyStats();
     const value = stored as Record<string, unknown>;
     const distribution = Array.isArray(value.distribution) ? value.distribution : [];
@@ -59,13 +61,18 @@ export function loadStats(kind: GameKind): GameStats {
   }
 }
 
-export function recordGame(kind: GameKind, won: boolean, attempts: number): GameStats {
+export function recordGame(kind: GameKind, won: boolean, attempts: number, mode?: GameMode): GameStats {
   const next = applyGameResult(loadStats(kind), won, attempts);
   safeStorageSet(STORAGE_KEYS[kind], JSON.stringify(next));
+  if (mode) {
+    const modeStats = applyGameResult(loadStats(kind, mode), won, attempts);
+    safeStorageSet(getStatsStorageKey(kind, mode), JSON.stringify(modeStats));
+  }
   return next;
 }
 
 export function clearStats(kind: GameKind): GameStats {
   safeStorageRemove(STORAGE_KEYS[kind]);
+  for (const mode of GAME_MODES) safeStorageRemove(getStatsStorageKey(kind, mode.id));
   return emptyStats();
 }
