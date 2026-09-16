@@ -33,6 +33,7 @@ function valueText(value: unknown) {
 
 export default function App() {
   const [gameKind, setGameKind] = useState<GameKind>('character');
+  const [itemVisited, setItemVisited] = useState(false);
   const game = useGame(characters);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
@@ -89,7 +90,8 @@ export default function App() {
   }, [theme]);
 
   function finishGame(kind: GameKind, won: boolean, attempts: number) {
-    setStatsByKind(current => ({ ...current, [kind]: recordGame(kind, won, attempts) }));
+    const nextStats = recordGame(kind, won, attempts);
+    setStatsByKind(current => ({ ...current, [kind]: nextStats }));
   }
 
   function submit(character?: Character) {
@@ -142,10 +144,12 @@ export default function App() {
       <main>
         <div className="kind-tabs" aria-label="추리 대상">
           <button className={gameKind === 'character' ? 'active' : ''} aria-pressed={gameKind === 'character'} onClick={() => setGameKind('character')}>실험체</button>
-          <button className={gameKind === 'item' ? 'active' : ''} aria-pressed={gameKind === 'item'} onClick={() => setGameKind('item')}>아이템</button>
+          <button className={gameKind === 'item' ? 'active' : ''} aria-pressed={gameKind === 'item'} onClick={() => { setItemVisited(true); setGameKind('item'); }}>아이템</button>
         </div>
-        {gameKind === 'item' ? <Suspense fallback={<p className="empty-board">아이템 게임을 불러오는 중…</p>}><ItemGame onFinished={(won, attempts) => finishGame('item', won, attempts)} /></Suspense> : (
-        <section className="game" aria-label="실험체 추리">
+        <div hidden={gameKind !== 'item'}>
+          {itemVisited && <Suspense fallback={<p className="empty-board">아이템 게임을 불러오는 중…</p>}><ItemGame onFinished={(won, attempts) => finishGame('item', won, attempts)} /></Suspense>}
+        </div>
+        <section className="game" aria-label="실험체 추리" hidden={gameKind !== 'character'}>
           <div className="intro">
             <h2>누구인지 맞춰볼까요?</h2>
             <p>{GAME_MODES.find(mode => mode.id === game.mode)?.description}</p>
@@ -269,7 +273,6 @@ export default function App() {
           </div>
           {!game.guesses.length && <p className="empty-board">익숙한 실험체부터 시작해보세요.</p>}
         </section>
-        )}
       </main>
       <footer className="site-footer">
         <p>wordlER는 Nimble Neuron과 관련 없는 비공식 프로젝트입니다. 이터널 리턴 및 관련 캐릭터·명칭·이미지·로고의 지식재산권은 Nimble Neuron Corp. 및 각 권리자에게 있습니다.</p>
