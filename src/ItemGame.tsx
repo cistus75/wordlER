@@ -32,6 +32,8 @@ export default function ItemGame({ onFinished }: { onFinished: (won: boolean, at
     if (game.status === 'won') {
       successDialog.current?.showModal();
       nextButton.current?.focus({ preventScroll: true });
+    } else if (game.status === 'lost') {
+      nextButton.current?.focus({ preventScroll: true });
     }
   }, [game.status]);
 
@@ -140,7 +142,7 @@ export default function ItemGame({ onFinished }: { onFinished: (won: boolean, at
             <p>{game.status === 'won' ? `${game.guesses.length}번 만에 찾았어요!` : '정답은'}</p>
             <h2>{game.answer.name}</h2>
           </div>
-          <button onClick={next}>다시하기 <span aria-hidden="true">→</span></button>
+          <button ref={game.status === 'lost' ? nextButton : undefined} onClick={next}>다시하기 <span aria-hidden="true">→</span></button>
         </div>
       )}
 
@@ -173,7 +175,7 @@ export default function ItemGame({ onFinished }: { onFinished: (won: boolean, at
                 </div>
               ))}
             </dl>
-            {guess.sameProfile && <p className="same-profile">정답과 동일한 아이템 구조입니다.</p>}
+            {guess.sameProfile && guess.hiddenFields.length === 0 && <p className="same-profile">정답과 동일한 아이템 구조입니다.</p>}
           </article>
         ))}
       </div>

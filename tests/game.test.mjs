@@ -107,6 +107,34 @@ assert.equal(sanitizedStats.distribution.length, 10);
 assert.deepEqual(sanitizedStats.distribution.slice(0, 5), [2, 0, 0, 0, 1]);
 console.log('Passed separated and sanitized stored statistics checks.');
 
+clearStats('character');
+const workingStorage = localStorage;
+recordGame('character', true, 1);
+Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: {
+  getItem: workingStorage.getItem,
+  setItem: () => { throw new Error('QuotaExceededError'); },
+  removeItem: () => { throw new Error('SecurityError'); },
+} });
+recordGame('character', true, 2);
+let fallbackStats = recordGame('character', true, 3);
+assert.equal(fallbackStats.played, 3);
+assert.equal(fallbackStats.currentStreak, 3);
+assert.deepEqual(fallbackStats.distribution.slice(0, 3), [1, 1, 1]);
+assert.equal(loadStats('item').played, 2);
+Object.defineProperty(globalThis, 'localStorage', { configurable: true, get: () => { throw new Error('SecurityError'); } });
+assert.equal(loadStats('item').played, 2);
+assert.equal(recordGame('character', false, 5).played, 4);
+clearStats('character');
+assert.equal(loadStats('character').played, 0);
+assert.equal(recordGame('character', true, 2).played, 1);
+Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: workingStorage });
+fallbackStats = recordGame('character', true, 3);
+assert.equal(fallbackStats.played, 2);
+assert.equal(JSON.parse(workingStorage.getItem(getStatsStorageKey('character'))).played, 2);
+workingStorage.setItem(getStatsStorageKey('character'), JSON.stringify(emptyStats()));
+assert.equal(loadStats('character').played, 0);
+console.log('Passed storage failure, recovery, and external update checks.');
+
 assert.equal(rawItems.length, 477);
 for (const code of [102504, 108506, 130504, 202531]) {
   assert.equal(rawItems.find(item => item.code === code)?.image, `/item-images/${code}.png`);

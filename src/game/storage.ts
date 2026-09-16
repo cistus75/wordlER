@@ -1,19 +1,33 @@
+const memory = new Map<string, string | null>();
+const pending = new Set<string>();
+
 export function safeStorageGet(key: string): string | null {
+  if (pending.has(key)) return memory.get(key) ?? null;
   try {
-    return localStorage.getItem(key);
+    const value = localStorage.getItem(key);
+    memory.set(key, value);
+    return value;
   } catch {
-    return null;
+    return memory.get(key) ?? null;
   }
 }
 
 export function safeStorageSet(key: string, value: string): void {
+  memory.set(key, value);
   try {
     localStorage.setItem(key, value);
-  } catch {}
+    pending.delete(key);
+  } catch {
+    pending.add(key);
+  }
 }
 
 export function safeStorageRemove(key: string): void {
+  memory.set(key, null);
   try {
     localStorage.removeItem(key);
-  } catch {}
+    pending.delete(key);
+  } catch {
+    pending.add(key);
+  }
 }
