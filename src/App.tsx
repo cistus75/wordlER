@@ -164,7 +164,6 @@ export default function App() {
             ))}
           </div>
 
-          <ModeProgress mode={game.mode} status={game.status} round={game.round} totalAttempts={game.previousAttempts + game.guesses.length} />
           {game.status === 'playing' ? (
             <div className="input-panel">
               <div className="search-area" onBlur={event => {
@@ -220,7 +219,10 @@ export default function App() {
                 <p id="search-message" className="input-note" role="status">{searchMessage}</p>
               </div>
               <div className="input-bottom">
+                <div className="attempt-info">
                 <span className="chances">남은 기회 <strong>{game.maxGuesses - game.guesses.length}</strong><small>/ {game.maxGuesses}</small></span>
+                <ModeProgress mode={game.mode} status={game.status} round={game.round} totalAttempts={game.previousAttempts + game.guesses.length} />
+                </div>
                 <button className="random" onClick={() => {
                   const remaining = characters.filter(character => !game.guessedIds.has(character.id));
                   submit(remaining[Math.floor(Math.random() * remaining.length)]);
@@ -233,13 +235,14 @@ export default function App() {
               <div className="result-copy" role="status">
                 <p>{game.status !== 'lost' ? `${game.guesses.length}번 만에 찾았어요!` : '정답은'}</p>
                 <h2>{game.answer.name}</h2>
+                <ModeProgress mode={game.mode} status={game.status} round={game.round} totalAttempts={game.previousAttempts + game.guesses.length} />
               </div>
               <button ref={game.status === 'lost' ? nextButton : undefined} onClick={next}>{game.status === 'round-won' ? '다음 문제' : '다시하기'} <span aria-hidden="true">→</span></button>
             </div>
           )}
 
           <div className="legend" aria-label="단서 읽는 법">
-            {game.mode === 'cipher' ? <span>부분 일치·수치 방향은 제공하지 않아요.</span> : HINT_LEGEND.map(entry => <span className={entry.className} key={entry.text}>{entry.text}</span>)}
+            {HINT_LEGEND.map(entry => <span className={entry.className} key={entry.text}>{entry.text}</span>)}
           </div>
           <p className="sr-only" aria-live="polite" aria-atomic="true">
             {game.status === 'playing' && latest ? `${latest.character.name} 추측 완료. ${game.maxGuesses - game.guesses.length}번 남았습니다.` : ''}
