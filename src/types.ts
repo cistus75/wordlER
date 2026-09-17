@@ -7,8 +7,8 @@ export interface Character {
   height: number | null;
   risk: string;
 }
-export type GameStatus = 'playing' | 'won' | 'lost';
-export type GameMode = 'classic' | 'sealed' | 'fog' | 'single' | 'coward' | 'manly';
+export type GameStatus = 'playing' | 'round-won' | 'won' | 'lost';
+export type GameMode = 'classic' | 'sealed' | 'fog' | 'single' | 'coward' | 'manly' | 'taboo' | 'reverse' | 'relay';
 export type ComparableField = 'roles' | 'weapons' | 'age' | 'height' | 'risk';
 export type HintStatus = 'exact' | 'partial' | 'wrong' | 'higher' | 'lower';
 export interface FieldHint<T> { value: T; status: HintStatus }

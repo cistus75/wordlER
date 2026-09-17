@@ -5,12 +5,14 @@ import { SEARCH_QUERY_MAX_LENGTH } from './game/search';
 import { useItemGame } from './game/useItemGame';
 import { GAME_MODES, HINT_LEGEND, HINT_STATUSES, HINT_SYMBOLS } from './game/ui';
 import type { GameMode, NormalizedItem } from './types';
+import ModeProgress from './game/ModeProgress';
+import { guessStatus } from './game/rules';
 
 function valueText(value: string | string[]) {
   return Array.isArray(value) ? value.join(' · ') : value;
 }
 
-export default function ItemGame({ onFinished }: { onFinished: (won: boolean, attempts: number, mode: GameMode) => void }) {
+export default function ItemGame({ onFinished }: { onFinished: (won: boolean, attempts: number, mode: GameMode, cleared: number) => void }) {
   const game = useItemGame(items);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
@@ -29,7 +31,7 @@ export default function ItemGame({ onFinished }: { onFinished: (won: boolean, at
   }, [active, query, showSuggestions]);
 
   useEffect(() => {
-    if (game.status === 'won') {
+    if (game.status === 'won' || game.status === 'round-won') {
       successDialog.current?.showModal();
       nextButton.current?.focus({ preventScroll: true });
     } else if (game.status === 'lost') {
@@ -50,7 +52,8 @@ export default function ItemGame({ onFinished }: { onFinished: (won: boolean, at
     if (result) {
       const won = game.answer?.code === item.code;
       const attempts = game.attempts + itemGuessCost(result);
-      if (won || attempts === game.maxGuesses) onFinished(won, attempts, game.mode);
+      const status = guessStatus(game.mode, won, attempts, game.round);
+      if (status === 'won' || status === 'lost') onFinished(won, game.previousAttempts + attempts, game.mode, game.mode === 'relay' ? game.round - 1 + Number(won) : 0);
       clearInput();
       input.current?.focus({ preventScroll: true });
     }
@@ -58,7 +61,8 @@ export default function ItemGame({ onFinished }: { onFinished: (won: boolean, at
 
   function next() {
     successDialog.current?.close();
-    game.reset();
+    if (game.status === 'round-won') game.advance();
+    else game.reset();
     clearInput();
     requestAnimationFrame(() => input.current?.focus({ preventScroll: true }));
   }
@@ -81,6 +85,7 @@ export default function ItemGame({ onFinished }: { onFinished: (won: boolean, at
         ))}
       </div>
 
+      <ModeProgress mode={game.mode} status={game.status} round={game.round} attempts={game.attempts} totalAttempts={game.previousAttempts + game.attempts} hiddenLabel={ITEM_LABELS[game.singleField]} />
       {game.status === 'playing' ? (
         <div className="input-panel">
           <div className="search-area" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setSearchOpen(false); }}>
@@ -140,10 +145,10 @@ export default function ItemGame({ onFinished }: { onFinished: (won: boolean, at
         <div className={`result ${game.status}`}>
           <img src={game.answer.image} width="64" height="64" alt="" />
           <div className="result-copy" role="status">
-            <p>{game.status === 'won' ? `${game.attempts}번 만에 찾았어요!` : '정답은'}</p>
+            <p>{game.status !== 'lost' ? `${game.attempts}번 만에 찾았어요!` : '정답은'}</p>
             <h2>{game.answer.name}</h2>
           </div>
-          <button ref={game.status === 'lost' ? nextButton : undefined} onClick={next}>다시하기 <span aria-hidden="true">→</span></button>
+          <button ref={game.status === 'lost' ? nextButton : undefined} onClick={next}>{game.status === 'round-won' ? '다음 문제' : '다시하기'} <span aria-hidden="true">→</span></button>
         </div>
       )}
 
@@ -183,14 +188,15 @@ export default function ItemGame({ onFinished }: { onFinished: (won: boolean, at
       {!game.guesses.length && <p className="empty-board">익숙한 아이템부터 시작해보세요.</p>}
 
       <dialog className="success-dialog item-success" ref={successDialog} onCancel={() => successDialog.current?.close()}>
-        {game.status === 'won' && game.answer && (
+        {(game.status === 'won' || game.status === 'round-won') && game.answer && (
           <div className="success-content">
             <button className="dialog-close" aria-label="닫기" onClick={() => successDialog.current?.close()}>×</button>
             <div className="success-art"><img src={game.answer.image} alt={`${game.answer.name} 아이콘`} /></div>
             <div className="success-copy">
-              <span className="success-label">정답입니다</span><h2>{game.answer.name}</h2>
+              <span className="success-label">{game.mode === 'relay' ? game.status === 'won' ? '3연속 클리어!' : `${game.round}번째 문제 성공!` : '정답입니다'}</span><h2>{game.answer.name}</h2>
               <dl><div><dt>도전 횟수</dt><dd>{game.attempts} / {game.maxGuesses}</dd></div><div><dt>게임 모드</dt><dd>{GAME_MODES.find(mode => mode.id === game.mode)?.label} 모드</dd></div></dl>
-              <button ref={nextButton} onClick={next}>다시하기 <span aria-hidden="true">→</span></button>
+              {game.mode === 'relay' && <p className="relay-total">누적 {game.previousAttempts + game.attempts}회 시도</p>}
+              <button ref={nextButton} onClick={next}>{game.status === 'round-won' ? '다음 문제' : '다시하기'} <span aria-hidden="true">→</span></button>
             </div>
           </div>
         )}

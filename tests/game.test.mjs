@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { searchCharacters } from '../src/game/search.ts';
 import { buildGuessHints, compareNumber, compareRisk, compareSet, hiddenFields, isCorrectGuess, randomFields } from '../src/game/compare.ts';
-import { maxGuessesForMode } from '../src/game/useGame.ts';
+import { maxGuessesForMode, guessStatus, RELAY_ROUNDS } from '../src/game/rules.ts';
 import { itemGuessCost } from '../src/game/item.ts';
 import { applyGameResult, clearStats, emptyStats, getStatsStorageKey, loadStats, recordGame } from '../src/game/stats.ts';
 import { buildItemGuessHints, compareItemEffects, compareItemOptions, hiddenItemFields, isCorrectItemGuess, ITEM_FIELDS, normalizeItem, normalizeSkillGroup, searchItems } from '../src/game/item.ts';
@@ -52,6 +52,21 @@ assert.deepEqual(hiddenFields('single', 0, 'roles'), ['weapons', 'age', 'height'
 assert.deepEqual(hiddenFields('single', 3, 'roles'), ['weapons', 'age', 'height', 'risk']);
 assert.deepEqual(hiddenFields('manly', 0, 'roles'), ['weapons', 'age', 'height', 'risk']);
 assert.equal(maxGuessesForMode('manly'), 3);
+assert.equal(maxGuessesForMode('taboo'), 7);
+assert.equal(maxGuessesForMode('reverse'), 5);
+assert.equal(maxGuessesForMode('relay'), 5);
+for (let turn = 0; turn < 7; turn++) assert.deepEqual(hiddenFields('taboo', turn, 'age'), ['age']);
+for (let turn = 0; turn < 5; turn++) {
+  assert.deepEqual(hiddenFields('reverse', turn, 'age', characterRevealOrder), characterRevealOrder.slice(0, turn));
+}
+assert.equal(guessStatus('taboo', false, 6, 1), 'playing');
+assert.equal(guessStatus('taboo', false, 7, 1), 'lost');
+assert.equal(guessStatus('taboo', true, 7, 1), 'won');
+for (let round = 1; round <= RELAY_ROUNDS; round++) {
+  assert.equal(guessStatus('relay', false, 4, round), 'playing');
+  assert.equal(guessStatus('relay', false, 5, round), 'lost');
+  assert.equal(guessStatus('relay', true, 5, round), round === RELAY_ROUNDS ? 'won' : 'round-won');
+}
 console.log(`Passed comparison and dataset checks for ${characters.length} characters.`);
 
 assert.equal(searchCharacters(characters, 'ㅈㅋ')[0].id, 'Jackie');
@@ -158,6 +173,20 @@ assert.equal(loadStats('character', 'manly').played, 0);
 assert.equal(loadStats('character', 'coward').played, 0);
 assert.equal(loadStats('item', 'classic').played, 1);
 console.log('Passed legacy totals, mode statistics, and deletion checks.');
+clearStats('character');
+recordGame('character', false, 9, 'relay', 1);
+assert.equal(loadStats('character', 'relay').bestCleared, 1);
+recordGame('character', true, 15, 'relay', 3);
+assert.equal(loadStats('character', 'relay').played, 2);
+assert.equal(loadStats('character', 'relay').wins, 1);
+assert.equal(loadStats('character', 'relay').bestCleared, 3);
+assert.equal(loadStats('character', 'relay').distribution[14], 1);
+assert.equal(loadStats('character').distribution[14], 1);
+recordGame('character', true, 2, 'classic');
+assert.equal(loadStats('character').distribution[14], 1);
+clearStats('character');
+assert.equal(loadStats('character', 'relay').bestCleared, 0);
+assert.equal(loadStats('character', 'relay').played, 0);
 
 assert.equal(rawItems.length, 477);
 for (const code of [102504, 108506, 130504, 202531]) {
@@ -208,6 +237,10 @@ assert.equal(hiddenItemFields('sealed', 0, 'category').length, 2);
 assert.equal(hiddenItemFields('fog', 0, 'category').length, 4);
 assert.equal(hiddenItemFields('fog', 4, 'category').length, 0);
 const itemRevealOrder = ['grade', 'options', 'category', 'uniqueEffect', 'type'];
+for (let turn = 0; turn < 7; turn++) assert.deepEqual(hiddenItemFields('taboo', turn, 'grade'), ['grade']);
+for (let turn = 0; turn < 5; turn++) {
+  assert.deepEqual(hiddenItemFields('reverse', turn, 'grade', itemRevealOrder), itemRevealOrder.slice(0, turn));
+}
 const itemRevealed = itemRevealOrder.map((_, turn) => new Set(itemRevealOrder.filter(field => !hiddenItemFields('fog', turn, 'category', itemRevealOrder).includes(field))));
 for (let turn = 1; turn < itemRevealed.length; turn++) {
   assert.ok([...itemRevealed[turn - 1]].every(field => itemRevealed[turn].has(field)));

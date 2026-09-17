@@ -1,15 +1,10 @@
 import { useMemo, useState } from 'react';
 import type { Character, ComparableField, GameMode, GameStatus, GuessResult } from '../types.ts';
 import { buildGuessHints, COMPARABLE_FIELDS, hiddenFields, isCorrectGuess, randomFields } from './compare.ts';
+import { guessStatus, maxGuessesForMode } from './rules.ts';
 
-export const MAX_GUESSES = 5;
-export const SUPER_COWARD_MAX_GUESSES = 10;
-export const MANLY_MAX_GUESSES = 3;
-export function maxGuessesForMode(mode: GameMode): number {
-  return mode === 'coward' ? SUPER_COWARD_MAX_GUESSES : mode === 'manly' ? MANLY_MAX_GUESSES : MAX_GUESSES;
-}
-function randomCharacter(characters: Character[], previousId?: string): Character | null {
-  const candidates = characters.length > 1 ? characters.filter(character => character.id !== previousId) : characters;
+function randomCharacter(characters: Character[], excludedIds: string[] = []): Character | null {
+  const candidates = characters.filter(character => !excludedIds.includes(character.id));
   return candidates[Math.floor(Math.random() * candidates.length)] ?? null;
 }
 export function useGame(characters: Character[]) {
@@ -17,17 +12,31 @@ export function useGame(characters: Character[]) {
   const [answer, setAnswer] = useState(() => randomCharacter(characters));
   const [guesses, setGuesses] = useState<GuessResult[]>([]);
   const [status, setStatus] = useState<GameStatus>('playing');
+  const [solved, setSolved] = useState<string[]>([]);
+  const [previousAttempts, setPreviousAttempts] = useState(0);
+  const round = solved.length + 1;
   const [singleField, setSingleField] = useState<ComparableField>(() => randomFields(1)[0]);
   const [revealOrder, setRevealOrder] = useState<ComparableField[]>(() => randomFields(COMPARABLE_FIELDS.length));
   const guessedIds = useMemo(() => new Set(guesses.map(result => result.character.id)), [guesses]);
   const maxGuesses = maxGuessesForMode(mode);
   function reset(nextMode: GameMode = mode) {
-    setAnswer(current => randomCharacter(characters, current?.id));
+    setAnswer(randomCharacter(characters, characters.length > 1 && answer ? [answer.id] : []));
     setGuesses([]);
     setStatus('playing');
     setModeState(nextMode);
     setSingleField(randomFields(1)[0]);
     setRevealOrder(randomFields(COMPARABLE_FIELDS.length));
+    setSolved([]);
+    setPreviousAttempts(0);
+  }
+  function advance() {
+    if (status !== 'round-won' || !answer) return;
+    const nextSolved = [...solved, answer.id];
+    setAnswer(randomCharacter(characters, nextSolved));
+    setSolved(nextSolved);
+    setPreviousAttempts(previousAttempts + guesses.length);
+    setGuesses([]);
+    setStatus('playing');
   }
   function setMode(nextMode: GameMode) {
     if (nextMode !== mode) reset(nextMode);
@@ -40,9 +49,8 @@ export function useGame(characters: Character[]) {
       hiddenFields: hiddenFields(mode, guesses.length, singleField, revealOrder),
     };
     setGuesses([...guesses, result]);
-    if (isCorrectGuess(character, answer)) setStatus('won');
-    else if (guesses.length + 1 >= maxGuesses) setStatus('lost');
+    setStatus(guessStatus(mode, isCorrectGuess(character, answer), guesses.length + 1, round));
     return result;
   }
-  return { answer, guesses, guessedIds, mode, status, maxGuesses, submitGuess, reset, setMode };
+  return { answer, guesses, guessedIds, mode, status, maxGuesses, round, previousAttempts, singleField, submitGuess, reset, advance, setMode };
 }

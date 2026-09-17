@@ -8,6 +8,8 @@ export function randomFields(count: number): ComparableField[] {
 export function hiddenFields(mode: GameMode, guessIndex: number, singleField: ComparableField, revealOrder = COMPARABLE_FIELDS): ComparableField[] {
   if (mode === 'sealed') return randomFields(2);
   if (mode === 'fog') return revealOrder.slice(Math.min(guessIndex + 1, revealOrder.length));
+  if (mode === 'taboo') return [singleField];
+  if (mode === 'reverse') return revealOrder.slice(0, Math.min(guessIndex, revealOrder.length - 1));
   if (mode === 'single' || mode === 'manly') return COMPARABLE_FIELDS.filter(field => field !== singleField);
   return [];
 }

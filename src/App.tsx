@@ -8,6 +8,8 @@ import { safeStorageGet, safeStorageSet } from './game/storage';
 import { GAME_MODES, HINT_LEGEND, HINT_STATUSES, HINT_SYMBOLS } from './game/ui';
 import type { ComparableField, Character, GameMode } from './types';
 import PatchNotesDialog from './patch-notes/PatchNotesDialog';
+import ModeProgress from './game/ModeProgress';
+import { guessStatus, RELAY_ROUNDS } from './game/rules';
 import './styles.css';
 
 const ItemGame = lazy(() => import('./ItemGame'));
@@ -59,7 +61,7 @@ export default function App() {
   }, [active, query, showSuggestions]);
 
   useEffect(() => {
-    if (game.status === 'won') {
+    if (game.status === 'won' || game.status === 'round-won') {
       successDialog.current?.showModal();
       nextButton.current?.focus({ preventScroll: true });
     } else if (game.status === 'lost') {
@@ -86,8 +88,8 @@ export default function App() {
     safeStorageSet('wordler:theme', theme);
   }, [theme]);
 
-  function finishGame(kind: GameKind, won: boolean, attempts: number, mode: GameMode) {
-    recordGame(kind, won, attempts, mode);
+  function finishGame(kind: GameKind, won: boolean, attempts: number, mode: GameMode, cleared = 0) {
+    recordGame(kind, won, attempts, mode, cleared);
     setStatsRevision(current => current + 1);
   }
 
@@ -97,8 +99,9 @@ export default function App() {
     if (result) {
       const won = game.answer?.id === character.id;
       const attempts = game.guesses.length + 1;
-      if (won || attempts === game.maxGuesses) {
-        finishGame('character', won, attempts, game.mode);
+      const status = guessStatus(game.mode, won, attempts, game.round);
+      if (status === 'won' || status === 'lost') {
+        finishGame('character', won, game.previousAttempts + attempts, game.mode, game.mode === 'relay' ? game.round - 1 + Number(won) : 0);
       }
       setQuery('');
       setError('');
@@ -111,7 +114,8 @@ export default function App() {
   function next() {
     successDialog.current?.close();
     focusNextRound.current = true;
-    game.reset();
+    if (game.status === 'round-won') game.advance();
+    else game.reset();
     setQuery('');
     setError('');
     setActive(0);
@@ -144,7 +148,7 @@ export default function App() {
           <button className={gameKind === 'item' ? 'active' : ''} aria-pressed={gameKind === 'item'} onClick={() => { setItemVisited(true); setGameKind('item'); }}>아이템</button>
         </div>
         <div hidden={gameKind !== 'item'}>
-          {itemVisited && <Suspense fallback={<p className="empty-board">아이템 게임을 불러오는 중…</p>}><ItemGame onFinished={(won, attempts, mode) => finishGame('item', won, attempts, mode)} /></Suspense>}
+          {itemVisited && <Suspense fallback={<p className="empty-board">아이템 게임을 불러오는 중…</p>}><ItemGame onFinished={(won, attempts, mode, cleared) => finishGame('item', won, attempts, mode, cleared)} /></Suspense>}
         </div>
         <section className="game" aria-label="실험체 추리" hidden={gameKind !== 'character'}>
           <div className="intro">
@@ -154,12 +158,13 @@ export default function App() {
 
           <div className="mode-tabs" aria-label="게임 모드">
             {GAME_MODES.map(mode => (
-              <button key={mode.id} className={game.mode === mode.id ? 'active' : ''} aria-pressed={game.mode === mode.id} onClick={() => game.setMode(mode.id)}>
+              <button key={mode.id} className={game.mode === mode.id ? 'active' : ''} aria-pressed={game.mode === mode.id} onClick={() => { game.setMode(mode.id); setQuery(''); setError(''); setActive(0); setSearchOpen(false); }}>
                 {mode.label}
               </button>
             ))}
           </div>
 
+          <ModeProgress mode={game.mode} status={game.status} round={game.round} attempts={game.guesses.length} totalAttempts={game.previousAttempts + game.guesses.length} hiddenLabel={labels[game.singleField]} />
           {game.status === 'playing' ? (
             <div className="input-panel">
               <div className="search-area" onBlur={event => {
@@ -226,10 +231,10 @@ export default function App() {
             <div className={`result ${game.status}`}>
               <img src={`/character/${game.answer.id}.png`} width="64" height="64" alt="" />
               <div className="result-copy" role="status">
-                <p>{game.status === 'won' ? `${game.guesses.length}번 만에 찾았어요!` : '정답은'}</p>
+                <p>{game.status !== 'lost' ? `${game.guesses.length}번 만에 찾았어요!` : '정답은'}</p>
                 <h2>{game.answer.name}</h2>
               </div>
-              <button ref={game.status === 'lost' ? nextButton : undefined} onClick={next}>다시하기 <span aria-hidden="true">→</span></button>
+              <button ref={game.status === 'lost' ? nextButton : undefined} onClick={next}>{game.status === 'round-won' ? '다음 문제' : '다시하기'} <span aria-hidden="true">→</span></button>
             </div>
           )}
 
@@ -277,7 +282,7 @@ export default function App() {
         <p>게임 통계와 테마 설정은 브라우저의 로컬 저장소에만 저장되며 서버로 전송되지 않습니다.</p>
       </footer>
       <dialog className="success-dialog" ref={successDialog} onCancel={() => successDialog.current?.close()}>
-        {game.status === 'won' && game.answer && (
+        {(game.status === 'won' || game.status === 'round-won') && game.answer && (
           <div className="success-content">
             <button className="dialog-close" aria-label="닫기" onClick={() => successDialog.current?.close()}>×</button>
             <div className="success-art">
@@ -288,13 +293,14 @@ export default function App() {
               />
             </div>
             <div className="success-copy">
-              <span className="success-label">정답입니다</span>
+              <span className="success-label">{game.mode === 'relay' ? game.status === 'won' ? '3연속 클리어!' : `${game.round}번째 문제 성공!` : '정답입니다'}</span>
               <h2>{game.answer.name}</h2>
               <dl>
                 <div><dt>도전 횟수</dt><dd>{game.guesses.length} / {game.maxGuesses}</dd></div>
                 <div><dt>게임 모드</dt><dd>{GAME_MODES.find(mode => mode.id === game.mode)?.label} 모드</dd></div>
+                {game.mode === 'relay' && <div><dt>누적 시도</dt><dd>{game.previousAttempts + game.guesses.length}회</dd></div>}
               </dl>
-              <button ref={nextButton} onClick={next}>다시하기 <span aria-hidden="true">→</span></button>
+              <button ref={nextButton} onClick={next}>{game.status === 'round-won' ? '다음 문제' : '다시하기'} <span aria-hidden="true">→</span></button>
             </div>
           </div>
         )}
@@ -312,6 +318,7 @@ export default function App() {
             ))}
           </div>
           <p>모드별 통계는 업데이트 이후 플레이부터 집계됩니다. 기존 기록은 전체에 포함됩니다.</p>
+          {statsMode === 'relay' && <p>3문제 도전을 한 판으로 집계합니다. 최고 기록: {stats.bestCleared} / {RELAY_ROUNDS} 정답</p>}
           <div className="stats-summary">
             <div><strong>{stats.played}</strong><span>플레이</span></div>
             <div><strong>{stats.played ? Math.round(stats.wins / stats.played * 100) : 0}%</strong><span>승률</span></div>
@@ -319,7 +326,7 @@ export default function App() {
             <div><strong>{stats.maxStreak}</strong><span>최장 연승</span></div>
           </div>
           <section className="distribution" aria-labelledby="distribution-title">
-            <h3 id="distribution-title">시도 횟수 분포</h3>
+            <h3 id="distribution-title">{statsMode === 'relay' ? '클리어 누적 시도 횟수' : '시도 횟수 분포'}</h3>
             {stats.distribution.map((count, index) => {
               const max = Math.max(...stats.distribution, 1);
               return (
