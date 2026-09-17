@@ -82,7 +82,7 @@ export function searchEntries<T>(entries: T[], query: string, aliases: (entry: T
       : typedAsEnglish && value.length >= 4 && isWithinOneEdit(nameJamo, keyboardJamo) ? 3 : -1;
     const koreanRank = Math.min(
       jamoRank < 0 ? Infinity : jamoRank + 3,
-      keyboardRank < 0 ? Infinity : keyboardRank + 3,
+      keyboardRank < 0 ? Infinity : keyboardRank + 1,
     );
     const bestRank = Math.min(rank < 0 ? Infinity : rank, koreanRank);
     return { entry, rank: Number.isFinite(bestRank) ? bestRank : -1 };
