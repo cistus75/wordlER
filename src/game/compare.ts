@@ -8,8 +8,6 @@ export function randomFields(count: number): ComparableField[] {
 export function hiddenFields(mode: GameMode, guessIndex: number, singleField: ComparableField, revealOrder = COMPARABLE_FIELDS): ComparableField[] {
   if (mode === 'sealed') return randomFields(2);
   if (mode === 'fog') return revealOrder.slice(Math.min(guessIndex + 1, revealOrder.length));
-  if (mode === 'taboo') return [singleField];
-  if (mode === 'reverse') return revealOrder.slice(0, Math.min(guessIndex, revealOrder.length - 1));
   if (mode === 'single' || mode === 'manly') return COMPARABLE_FIELDS.filter(field => field !== singleField);
   return [];
 }
@@ -19,9 +17,9 @@ export function compareSet(guess: string[], answer: string[]): HintStatus {
   if (a.size === b.size && [...a].every(value => b.has(value))) return 'exact';
   return [...a].some(value => b.has(value)) ? 'partial' : 'wrong';
 }
-export function compareNumber(guess: number | null, answer: number | null): HintStatus {
+export function compareNumber(guess: number | null, answer: number | null, randomUnknown = true): HintStatus {
   if (guess === answer) return 'exact';
-  if (answer === null) return Math.random() < 0.5 ? 'higher' : 'lower';
+  if (answer === null) return randomUnknown ? Math.random() < 0.5 ? 'higher' : 'lower' : 'wrong';
   if (guess === null) return 'wrong';
   return guess < answer ? 'higher' : 'lower';
 }
@@ -33,8 +31,8 @@ export function buildGuessHints(guess: Character, answer: Character, mode: GameM
   return {
     roles: { value: guess.roles, status: compareSet(guess.roles, answer.roles) },
     weapons: { value: guess.weapons, status: compareSet(guess.weapons, answer.weapons) },
-    age: { value: guess.age, status: compareNumber(guess.age, answer.age) },
-    height: { value: guess.height, status: compareNumber(guess.height, answer.height) },
+    age: { value: guess.age, status: compareNumber(guess.age, answer.age, mode !== 'liar') },
+    height: { value: guess.height, status: compareNumber(guess.height, answer.height, mode !== 'liar') },
     risk: { value: guess.risk, status: mode === 'coward' ? compareRisk(guess.risk, answer.risk) : guess.risk === answer.risk ? 'exact' : 'wrong' },
   };
 }

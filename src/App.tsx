@@ -9,7 +9,7 @@ import { GAME_MODES, HINT_LEGEND, HINT_STATUSES, HINT_SYMBOLS } from './game/ui'
 import type { ComparableField, Character, GameMode } from './types';
 import PatchNotesDialog from './patch-notes/PatchNotesDialog';
 import ModeProgress from './game/ModeProgress';
-import { guessStatus, RELAY_ROUNDS } from './game/rules';
+import { exactCount, guessStatus, RELAY_ROUNDS } from './game/rules';
 import './styles.css';
 
 const ItemGame = lazy(() => import('./ItemGame'));
@@ -164,7 +164,7 @@ export default function App() {
             ))}
           </div>
 
-          <ModeProgress mode={game.mode} status={game.status} round={game.round} attempts={game.guesses.length} totalAttempts={game.previousAttempts + game.guesses.length} hiddenLabel={labels[game.singleField]} />
+          <ModeProgress mode={game.mode} status={game.status} round={game.round} totalAttempts={game.previousAttempts + game.guesses.length} />
           {game.status === 'playing' ? (
             <div className="input-panel">
               <div className="search-area" onBlur={event => {
@@ -239,7 +239,7 @@ export default function App() {
           )}
 
           <div className="legend" aria-label="단서 읽는 법">
-            {HINT_LEGEND.map(entry => <span className={entry.className} key={entry.text}>{entry.text}</span>)}
+            {game.mode === 'cipher' ? <span>부분 일치·수치 방향은 제공하지 않아요.</span> : HINT_LEGEND.map(entry => <span className={entry.className} key={entry.text}>{entry.text}</span>)}
           </div>
           <p className="sr-only" aria-live="polite" aria-atomic="true">
             {game.status === 'playing' && latest ? `${latest.character.name} 추측 완료. ${game.maxGuesses - game.guesses.length}번 남았습니다.` : ''}
@@ -257,7 +257,7 @@ export default function App() {
                     <div className="attribute reveal-tile" key={field} style={{ '--tile-index': fieldIndex + 1 } as CSSProperties}>
                       <dt>{labels[field]}</dt>
                       <dd>
-                        {guess.hiddenFields.includes(field) ? (
+                        {game.mode === 'cipher' ? <span className="hint neutral">{valueText(guess.hints[field].value)}</span> : guess.hiddenFields.includes(field) ? (
                           <span className="hint locked"><b aria-hidden="true">?</b><span className="sr-only">봉인</span></span>
                         ) : (
                           <span className={`hint ${guess.hints[field].status}`} title={HINT_STATUSES[guess.hints[field].status]}>
@@ -270,6 +270,8 @@ export default function App() {
                     </div>
                   ))}
                 </dl>
+                {game.mode === 'cipher' && <p className="deduction-summary">완전 일치 <strong>{exactCount(guess.hints)} / 5</strong></p>}
+                {game.status !== 'playing' && guess.lie && <p className="deduction-summary">거짓 단서: <strong>{labels[guess.lie.field]}</strong> · 실제 판정: {HINT_STATUSES[guess.lie.truth]}</p>}
               </article>
             ))}
           </div>

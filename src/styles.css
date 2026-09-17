@@ -330,6 +330,11 @@ form button { width: 100px; flex-shrink: 0; height: 48px; }
   .guess-card { grid-template-columns: 74px minmax(0, 1fr); }
 }
 
+.hint.neutral { background: transparent; color: inherit; }
+.deduction-summary { grid-column: 1 / -1; margin: 0; padding: 12px 16px; border-top: 1px solid #e5e5e5; font-size: 12px; line-height: 1.6; }
+.deduction-summary strong { margin: 0 4px; }
+[data-theme='dark'] .deduction-summary { border-color: #404040; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }

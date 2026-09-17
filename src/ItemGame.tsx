@@ -6,7 +6,7 @@ import { useItemGame } from './game/useItemGame';
 import { GAME_MODES, HINT_LEGEND, HINT_STATUSES, HINT_SYMBOLS } from './game/ui';
 import type { GameMode, NormalizedItem } from './types';
 import ModeProgress from './game/ModeProgress';
-import { guessStatus } from './game/rules';
+import { exactCount, guessStatus } from './game/rules';
 
 function valueText(value: string | string[]) {
   return Array.isArray(value) ? value.join(' · ') : value;
@@ -85,7 +85,7 @@ export default function ItemGame({ onFinished }: { onFinished: (won: boolean, at
         ))}
       </div>
 
-      <ModeProgress mode={game.mode} status={game.status} round={game.round} attempts={game.attempts} totalAttempts={game.previousAttempts + game.attempts} hiddenLabel={ITEM_LABELS[game.singleField]} />
+      <ModeProgress mode={game.mode} status={game.status} round={game.round} totalAttempts={game.previousAttempts + game.attempts} />
       {game.status === 'playing' ? (
         <div className="input-panel">
           <div className="search-area" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setSearchOpen(false); }}>
@@ -153,7 +153,7 @@ export default function ItemGame({ onFinished }: { onFinished: (won: boolean, at
       )}
 
       <div className="legend" aria-label="단서 읽는 법">
-        {HINT_LEGEND.map(entry => <span className={entry.className} key={entry.text}>{entry.text}</span>)}
+        {game.mode === 'cipher' ? <span>부분 일치·수치 방향은 제공하지 않아요.</span> : HINT_LEGEND.map(entry => <span className={entry.className} key={entry.text}>{entry.text}</span>)}
       </div>
       <p className="sr-only" aria-live="polite" aria-atomic="true">
         {game.status === 'playing' && latest ? `${latest.item.name} 추측 완료. ${game.maxGuesses - game.attempts}번 남았습니다.` : ''}
@@ -170,7 +170,7 @@ export default function ItemGame({ onFinished }: { onFinished: (won: boolean, at
               {ITEM_FIELDS.map((field, fieldIndex) => (
                 <div className="attribute reveal-tile" key={field} style={{ '--tile-index': fieldIndex + 1 } as CSSProperties}>
                   <dt>{ITEM_LABELS[field]}</dt>
-                  <dd>{guess.hiddenFields.includes(field) ? (
+                  <dd>{game.mode === 'cipher' ? <span className="hint neutral">{valueText(guess.hints[field].value)}</span> : guess.hiddenFields.includes(field) ? (
                     <span className="hint locked"><b aria-hidden="true">?</b><span className="sr-only">봉인</span></span>
                   ) : (
                     <span className={`hint ${guess.hints[field].status}`} title={HINT_STATUSES[guess.hints[field].status]}>
@@ -181,6 +181,8 @@ export default function ItemGame({ onFinished }: { onFinished: (won: boolean, at
                 </div>
               ))}
             </dl>
+            {game.mode === 'cipher' && <p className="deduction-summary">완전 일치 <strong>{exactCount(guess.hints)} / 5</strong></p>}
+            {game.status !== 'playing' && guess.lie && <p className="deduction-summary">거짓 단서: <strong>{ITEM_LABELS[guess.lie.field]}</strong> · 실제 판정: {HINT_STATUSES[guess.lie.truth]}</p>}
             {itemGuessCost(guess) === 0 && <p className="same-profile">모든 속성이 같아 기회를 차감하지 않았어요.</p>}
           </article>
         ))}

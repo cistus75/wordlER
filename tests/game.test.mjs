@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { searchCharacters } from '../src/game/search.ts';
 import { buildGuessHints, compareNumber, compareRisk, compareSet, hiddenFields, isCorrectGuess, randomFields } from '../src/game/compare.ts';
-import { maxGuessesForMode, guessStatus, RELAY_ROUNDS } from '../src/game/rules.ts';
+import { exactCount, plantLie, maxGuessesForMode, guessStatus, RELAY_ROUNDS } from '../src/game/rules.ts';
+import { GAME_MODES } from '../src/game/ui.ts';
 import { itemGuessCost } from '../src/game/item.ts';
 import { applyGameResult, clearStats, emptyStats, getStatsStorageKey, loadStats, recordGame } from '../src/game/stats.ts';
 import { buildItemGuessHints, compareItemEffects, compareItemOptions, hiddenItemFields, isCorrectItemGuess, ITEM_FIELDS, normalizeItem, normalizeSkillGroup, searchItems } from '../src/game/item.ts';
@@ -52,16 +53,30 @@ assert.deepEqual(hiddenFields('single', 0, 'roles'), ['weapons', 'age', 'height'
 assert.deepEqual(hiddenFields('single', 3, 'roles'), ['weapons', 'age', 'height', 'risk']);
 assert.deepEqual(hiddenFields('manly', 0, 'roles'), ['weapons', 'age', 'height', 'risk']);
 assert.equal(maxGuessesForMode('manly'), 3);
-assert.equal(maxGuessesForMode('taboo'), 7);
-assert.equal(maxGuessesForMode('reverse'), 5);
+assert.equal(GAME_MODES.length, 9);
+assert.equal(new Set(GAME_MODES.map(mode => mode.id)).size, 9);
+assert.equal(maxGuessesForMode('cipher'), 5);
+assert.equal(maxGuessesForMode('liar'), 5);
 assert.equal(maxGuessesForMode('relay'), 5);
-for (let turn = 0; turn < 7; turn++) assert.deepEqual(hiddenFields('taboo', turn, 'age'), ['age']);
-for (let turn = 0; turn < 5; turn++) {
-  assert.deepEqual(hiddenFields('reverse', turn, 'age', characterRevealOrder), characterRevealOrder.slice(0, turn));
+for (const mode of ['cipher', 'liar']) {
+  assert.equal(guessStatus(mode, false, 4, 1), 'playing');
+  assert.equal(guessStatus(mode, false, 5, 1), 'lost');
+  assert.equal(guessStatus(mode, true, 5, 1), 'won');
 }
-assert.equal(guessStatus('taboo', false, 6, 1), 'playing');
-assert.equal(guessStatus('taboo', false, 7, 1), 'lost');
-assert.equal(guessStatus('taboo', true, 7, 1), 'won');
+const honest = { a: { status: 'exact' }, b: { status: 'partial' }, c: { status: 'wrong' }, d: { status: 'higher' }, e: { status: 'lower' } };
+assert.equal(exactCount(honest), 1);
+for (let index = 0; index < 5; index++) {
+  Math.random = () => index / 5;
+  const result = plantLie(honest, Object.keys(honest), false);
+  assert.equal(Object.keys(honest).filter(key => result.hints[key].status !== honest[key].status).length, 1);
+  assert.equal(result.lie.field, Object.keys(honest)[index]);
+  assert.equal(result.lie.truth, honest[result.lie.field].status);
+  assert.equal(exactCount(honest), 1);
+}
+Math.random = random;
+assert.deepEqual(plantLie(honest, Object.keys(honest), true), { hints: honest });
+assert.equal(buildGuessHints({ ...characters[0], age: 20 }, { ...characters[1], age: null }, 'liar').age.status, 'wrong');
+assert.equal(buildGuessHints({ ...characters[0], age: null }, { ...characters[1], age: null }, 'liar').age.status, 'exact');
 for (let round = 1; round <= RELAY_ROUNDS; round++) {
   assert.equal(guessStatus('relay', false, 4, round), 'playing');
   assert.equal(guessStatus('relay', false, 5, round), 'lost');
@@ -237,10 +252,14 @@ assert.equal(hiddenItemFields('sealed', 0, 'category').length, 2);
 assert.equal(hiddenItemFields('fog', 0, 'category').length, 4);
 assert.equal(hiddenItemFields('fog', 4, 'category').length, 0);
 const itemRevealOrder = ['grade', 'options', 'category', 'uniqueEffect', 'type'];
-for (let turn = 0; turn < 7; turn++) assert.deepEqual(hiddenItemFields('taboo', turn, 'grade'), ['grade']);
-for (let turn = 0; turn < 5; turn++) {
-  assert.deepEqual(hiddenItemFields('reverse', turn, 'grade', itemRevealOrder), itemRevealOrder.slice(0, turn));
+assert.equal(itemGuessCost({ sameProfile: true, hiddenFields: [], lie: { field: 'grade', truth: 'exact' } }), 1);
+for (const mode of ['cipher', 'liar']) {
+  recordGame('item', true, 5, mode);
+  assert.equal(loadStats('item', mode).distribution[4], 1);
 }
+clearStats('item');
+assert.equal(loadStats('item', 'cipher').played, 0);
+assert.equal(loadStats('item', 'liar').played, 0);
 const itemRevealed = itemRevealOrder.map((_, turn) => new Set(itemRevealOrder.filter(field => !hiddenItemFields('fog', turn, 'category', itemRevealOrder).includes(field))));
 for (let turn = 1; turn < itemRevealed.length; turn++) {
   assert.ok([...itemRevealed[turn - 1]].every(field => itemRevealed[turn].has(field)));

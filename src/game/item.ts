@@ -3,8 +3,8 @@ import { searchEntries } from './search.ts';
 import { shuffle } from './shuffle.ts';
 
 export const ITEM_FIELDS: ItemField[] = ['category', 'grade', 'type', 'options', 'uniqueEffect'];
-export function itemGuessCost(guess: { sameProfile: boolean; hiddenFields: ItemField[] }): number {
-  return guess.sameProfile && guess.hiddenFields.length === 0 ? 0 : 1;
+export function itemGuessCost(guess: { sameProfile: boolean; hiddenFields: ItemField[]; lie?: unknown }): number {
+  return guess.sameProfile && guess.hiddenFields.length === 0 && !guess.lie ? 0 : 1;
 }
 export const ITEM_LABELS: Record<ItemField, string> = {
   category: '종류', grade: '등급', type: '유형', options: '옵션', uniqueEffect: '고유 효과',
@@ -28,8 +28,6 @@ export function normalizeSkillGroup(group: string): string {
 export function hiddenItemFields(mode: import('../types').GameMode, guessIndex: number, singleField: ItemField, revealOrder = ITEM_FIELDS): ItemField[] {
   if (mode === 'sealed') return shuffledItemFields().slice(0, 2);
   if (mode === 'fog') return revealOrder.slice(Math.min(guessIndex + 1, revealOrder.length));
-  if (mode === 'taboo') return [singleField];
-  if (mode === 'reverse') return revealOrder.slice(0, Math.min(guessIndex, revealOrder.length - 1));
   if (mode === 'single' || mode === 'manly') return ITEM_FIELDS.filter(field => field !== singleField);
   return [];
 }

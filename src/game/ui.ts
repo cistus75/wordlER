@@ -7,8 +7,8 @@ export const GAME_MODES: { id: GameMode; label: string; description: string }[] 
   { id: 'single', label: '단일', description: '한 판 동안 무작위 속성 하나만 보여요.' },
   { id: 'coward', label: '슈퍼겁쟁이', description: '허접~ 허접~ 이것도 못 맞추는 허접 유저~' },
   { id: 'manly', label: '사나이클럽', description: '겁쟁이 출입 금지.' },
-  { id: 'taboo', label: '금지어', description: '속성 하나는 끝까지 비밀. 7번 안에 맞혀요.' },
-  { id: 'reverse', label: '역전', description: '5번의 추측, 새 힌트는 5→4→3→2→1개. 이전 단서는 남아요.' },
+  { id: 'cipher', label: '암호', description: '어떤 속성인지는 비밀. 완전히 일치하는 속성 수만 보고 5번 안에 맞혀요.' },
+  { id: 'liar', label: '이중첩자', description: '오답마다 단 하나의 판정이 거짓! 나머지 네 단서를 믿고 5번 안에 맞혀요.' },
   { id: 'relay', label: '연속 출제', description: '문제마다 5번의 기회. 서로 다른 정답 3개를 연속으로 맞혀요.' },
 ];
 export const HINT_STATUSES: Record<HintStatus, string> = {

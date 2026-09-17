@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { GameMode, GameStatus, ItemField, ItemGuessResult, NormalizedItem } from '../types';
-import { buildItemGuessHints, hiddenItemFields, isCorrectItemGuess, itemGuessCost, shuffledItemFields } from './item';
-import { guessStatus, maxGuessesForMode } from './rules';
+import { buildItemGuessHints, hiddenItemFields, isCorrectItemGuess, itemGuessCost, shuffledItemFields, ITEM_FIELDS } from './item';
+import { guessStatus, maxGuessesForMode, plantLie } from './rules';
 
 function randomItem(items: NormalizedItem[], excludedCodes: number[] = []): NormalizedItem | null {
   const candidates = items.filter(item => !excludedCodes.includes(item.code));
@@ -51,7 +51,7 @@ export function useItemGame(items: NormalizedItem[]) {
     if (!answer || status !== 'playing' || guessedCodes.has(item.code)) return null;
     const hints = buildItemGuessHints(item, answer);
     const correct = isCorrectItemGuess(item, answer);
-    const result = { item, hints, hiddenFields: hiddenItemFields(mode, attempts, singleField, revealOrder), sameProfile: !correct && Object.values(hints).every(hint => hint.status === 'exact') };
+    const result: ItemGuessResult = { item, ...(mode === 'liar' ? plantLie(hints, ITEM_FIELDS, correct) : { hints }), hiddenFields: hiddenItemFields(mode, attempts, singleField, revealOrder), sameProfile: !correct && Object.values(hints).every(hint => hint.status === 'exact') };
     setGuesses([...guesses, result]);
     setStatus(guessStatus(mode, correct, attempts + itemGuessCost(result), round));
     return result;

@@ -8,7 +8,7 @@ export interface Character {
   risk: string;
 }
 export type GameStatus = 'playing' | 'round-won' | 'won' | 'lost';
-export type GameMode = 'classic' | 'sealed' | 'fog' | 'single' | 'coward' | 'manly' | 'taboo' | 'reverse' | 'relay';
+export type GameMode = 'classic' | 'sealed' | 'fog' | 'single' | 'coward' | 'manly' | 'cipher' | 'liar' | 'relay';
 export type ComparableField = 'roles' | 'weapons' | 'age' | 'height' | 'risk';
 export type HintStatus = 'exact' | 'partial' | 'wrong' | 'higher' | 'lower';
 export interface FieldHint<T> { value: T; status: HintStatus }
@@ -17,6 +17,7 @@ export interface GuessResult {
   character: Character;
   hints: GuessHints;
   hiddenFields: ComparableField[];
+  lie?: { field: ComparableField; truth: HintStatus };
 }
 
 export type ItemType = 'Weapon' | 'Armor';
@@ -50,5 +51,6 @@ export interface ItemGuessResult {
   hints: ItemGuessHints;
   hiddenFields: ItemField[];
   sameProfile: boolean;
+  lie?: { field: ItemField; truth: HintStatus };
 }
 

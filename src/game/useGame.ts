@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { Character, ComparableField, GameMode, GameStatus, GuessResult } from '../types.ts';
 import { buildGuessHints, COMPARABLE_FIELDS, hiddenFields, isCorrectGuess, randomFields } from './compare.ts';
-import { guessStatus, maxGuessesForMode } from './rules.ts';
+import { guessStatus, maxGuessesForMode, plantLie } from './rules.ts';
 
 function randomCharacter(characters: Character[], excludedIds: string[] = []): Character | null {
   const candidates = characters.filter(character => !excludedIds.includes(character.id));
@@ -43,9 +43,10 @@ export function useGame(characters: Character[]) {
   }
   function submitGuess(character: Character): GuessResult | null {
     if (!answer || status !== 'playing' || guessedIds.has(character.id)) return null;
-    const result = {
+    const hints = buildGuessHints(character, answer, mode);
+    const result: GuessResult = {
       character,
-      hints: buildGuessHints(character, answer, mode),
+      ...(mode === 'liar' ? plantLie(hints, COMPARABLE_FIELDS, isCorrectGuess(character, answer)) : { hints }),
       hiddenFields: hiddenFields(mode, guesses.length, singleField, revealOrder),
     };
     setGuesses([...guesses, result]);
