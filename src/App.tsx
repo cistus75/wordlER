@@ -286,7 +286,7 @@ export default function App() {
         <p>본 안내를 확인하고 사이트를 이용하는 경우, Cloudflare Web Analytics를 통한 개인 식별 없는 방문 통계 수집에 동의한 것으로 간주됩니다.</p>
         <p>게임 통계와 테마 설정은 브라우저의 로컬 저장소에만 저장되며 서버로 전송되지 않습니다.</p>
       </footer>
-      <dialog className="success-dialog" ref={successDialog} onCancel={() => successDialog.current?.close()}>
+      <dialog className="success-dialog" aria-label="실험체 정답 결과" ref={successDialog} onCancel={() => successDialog.current?.close()}>
         {(game.status === 'won' || game.status === 'round-won') && game.answer && (
           <div className="success-content">
             <button className="dialog-close" aria-label="닫기" onClick={() => successDialog.current?.close()}>×</button>
@@ -294,7 +294,13 @@ export default function App() {
               <img
                 src={`/character/full/${game.answer.id}.png`}
                 alt={`${game.answer.name} 전신 이미지`}
-                onError={event => { const target = event.currentTarget; target.onerror = null; target.src = `/character/${game.answer?.id}.png`; target.classList.add('fallback'); }}
+                onError={event => {
+                  const target = event.currentTarget;
+                  const fallback = `/character/${game.answer?.id}.png`;
+                  if (target.getAttribute('src') === fallback) return;
+                  target.src = fallback;
+                  target.classList.add('fallback');
+                }}
               />
             </div>
             <div className="success-copy">
@@ -311,10 +317,10 @@ export default function App() {
         )}
       </dialog>
       <PatchNotesDialog dialogRef={patchNotesDialog} />
-      <dialog className="stats-dialog" ref={statsDialog} onCancel={() => statsDialog.current?.close()}>
+      <dialog className="stats-dialog" aria-labelledby="stats-title" ref={statsDialog} onCancel={() => statsDialog.current?.close()}>
         <div className="stats-content">
           <button className="dialog-close" aria-label="닫기" onClick={() => statsDialog.current?.close()}>×</button>
-          <h2>{gameKind === 'character' ? '실험체' : '아이템'} 게임 통계</h2>
+          <h2 id="stats-title">{gameKind === 'character' ? '실험체' : '아이템'} 게임 통계</h2>
           <p>이 브라우저의 기기에만 저장됩니다.</p>
           <div className="mode-tabs stats-filter" role="group" aria-label="통계 모드">
             <button type="button" className={statsMode === 'all' ? 'active' : ''} aria-pressed={statsMode === 'all'} onClick={() => setStatsMode('all')}>전체</button>

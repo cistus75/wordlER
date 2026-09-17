@@ -7,6 +7,8 @@ import { characters } from '../src/data/characters';
 import { items } from '../src/data/items';
 import { buildItemGuessHints } from '../src/game/item';
 import { exactCount } from '../src/game/rules';
+import App from '../src/App';
+import { getStatsStorageKey } from '../src/game/stats';
 
 let characterGame!: ReturnType<typeof useGame>;
 let itemGame!: ReturnType<typeof useItemGame>;
@@ -92,6 +94,32 @@ try {
     flushSync(() => itemGame.submitGuess({ ...itemGame.answer!, code: -1 }));
     check(itemGame.status === 'playing', `${mode}: matching profile is not a win`);
     check(itemGame.attempts === (mode === 'cipher' ? 0 : 1), `${mode}: profile exemption does not leak a lie`);
+  }
+  const statsKeys = [getStatsStorageKey('character'), getStatsStorageKey('character', 'classic')];
+  const savedStats = statsKeys.map(key => localStorage.getItem(key));
+  const random = Math.random;
+  try {
+    Math.random = () => 0;
+    flushSync(() => root.render(<StrictMode><App /></StrictMode>));
+    flushSync(() => document.querySelector<HTMLButtonElement>('.random')!.click());
+    const image = document.querySelector<HTMLImageElement>('.success-art img')!;
+    check(Boolean(image), 'winning character image rendered');
+    image.dispatchEvent(new Event('error'));
+    check(image.getAttribute('src') === `/character/${characters[0].id}.png`, 'portrait fallback selected');
+    const observer = new MutationObserver(() => {});
+    observer.observe(image, { attributes: true, attributeFilter: ['src'] });
+    image.dispatchEvent(new Event('error'));
+    const mutations = observer.takeRecords();
+    observer.disconnect();
+    check(mutations.length === 0, 'failed portrait fallback must not retry');
+    lines.push('character: 전신 이미지 실패 시 대체 · 대체 이미지 재요청 차단 통과');
+  } finally {
+    Math.random = random;
+    statsKeys.forEach((key, index) => {
+      const value = savedStats[index];
+      if (value === null) localStorage.removeItem(key);
+      else localStorage.setItem(key, value);
+    });
   }
   document.getElementById('result')!.textContent = `PASS\n${lines.join('\n')}`;
 } catch (error) {

@@ -192,7 +192,7 @@ export default function ItemGame({ onFinished }: { onFinished: (won: boolean, at
       </div>
       {!game.guesses.length && <p className="empty-board">익숙한 아이템부터 시작해보세요.</p>}
 
-      <dialog className="success-dialog item-success" ref={successDialog} onCancel={() => successDialog.current?.close()}>
+      <dialog className="success-dialog item-success" aria-label="아이템 정답 결과" ref={successDialog} onCancel={() => successDialog.current?.close()}>
         {(game.status === 'won' || game.status === 'round-won') && game.answer && (
           <div className="success-content">
             <button className="dialog-close" aria-label="닫기" onClick={() => successDialog.current?.close()}>×</button>

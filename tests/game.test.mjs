@@ -91,6 +91,9 @@ assert.equal(searchCharacters(characters, '재키'.normalize('NFD'))[0].id, 'Jac
 assert.equal(searchCharacters(characters, '재ㅋ')[0].id, 'Jackie');
 assert.equal(searchCharacters(characters, 'wozl')[0].id, 'Jackie');
 assert.equal(searchCharacters(characters, 'worzl')[0].id, 'Jackie');
+assert.ok(searchCharacters(characters, 'El').some(character => character.id === 'Tia'));
+assert.equal(searchCharacters(characters, 'Eldk')[0].id, 'Tia');
+assert.equal(searchCharacters(characters, ' woZl ')[0].id, 'Jackie');
 assert.deepEqual(searchCharacters(characters, '존재하지않음'), []);
 assert.deepEqual(searchCharacters(characters, '  '), []);
 const searchPool = [

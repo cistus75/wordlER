@@ -10,6 +10,7 @@ const keyboard = new Map(Object.entries({
   q: 'ㅂ', w: 'ㅈ', e: 'ㄷ', r: 'ㄱ', t: 'ㅅ', y: 'ㅛ', u: 'ㅕ', i: 'ㅑ', o: 'ㅐ', p: 'ㅔ',
   a: 'ㅁ', s: 'ㄴ', d: 'ㅇ', f: 'ㄹ', g: 'ㅎ', h: 'ㅗ', j: 'ㅓ', k: 'ㅏ', l: 'ㅣ',
   z: 'ㅋ', x: 'ㅌ', c: 'ㅊ', v: 'ㅍ', b: 'ㅠ', n: 'ㅜ', m: 'ㅡ',
+  Q: 'ㅃ', W: 'ㅉ', E: 'ㄸ', R: 'ㄲ', T: 'ㅆ', O: 'ㅒ', P: 'ㅖ',
 }));
 
 export function normalize(text: string) {
@@ -25,7 +26,7 @@ function toJamo(text: string) {
 }
 
 function keyboardToJamo(text: string) {
-  return [...text].map(letter => keyboard.get(letter) ?? letter).join('');
+  return [...text].map(letter => keyboard.get(letter) ?? keyboard.get(letter.toLowerCase()) ?? letter).join('');
 }
 
 function expandCompoundJamo(text: string) {
@@ -55,7 +56,7 @@ export function searchEntries<T>(entries: T[], query: string, aliases: (entry: T
   if (!value) return [];
   const valueJamo = toJamo(value);
   const typedAsEnglish = /^[a-z]+$/.test(value);
-  const keyboardJamo = typedAsEnglish ? keyboardToJamo(value) : '';
+  const keyboardJamo = typedAsEnglish ? normalize(keyboardToJamo(query)) : '';
   const initialValue = expandCompoundJamo(value);
 
   return entries.map(entry => {
