@@ -73,7 +73,7 @@ try {
     check(game().status === 'lost' && game().round === 2, `${kind}: intermediate loss ends run`);
     flushSync(() => game().setMode('classic'));
     check(game().round === 1 && game().previousAttempts === 0 && game().guesses.length === 0, `${kind}: mode switch clears relay`);
-    lines.push(`${kind}: 암호 · 이중첩자 5회 승패 · 연속 출제 전환/재시작 통과`);
+    lines.push(`${kind}: 암호 · 첩자 5회 승패 · 연속 출제 전환/재시작 통과`);
   }
   flushSync(() => itemGame.setMode('relay'));
   for (let i = 0; i < 4; i++) {
