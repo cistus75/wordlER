@@ -1,57 +1,63 @@
-# 이리 워들
+# wordlER
 
-이터널 리턴 실험체 90명을 대상으로 하는 무제한 속성 추리 게임. 포켓워들의 라이트 화면을 참고한 미니멀 UI입니다.
+이터널 리턴의 실험체와 아이템을 대상으로 하는 Wordle 스타일의 추리 게임입니다.
+
+추측한 대상과 정답의 속성을 비교해 제공되는 힌트를 바탕으로 제한된 횟수 안에 정답을 맞히는 방식입니다.
+
+배포 이후 약 1.4k의 누적 방문자를 기록했습니다.(26.09.22 기준)
+실제 사용자 피드백을 바탕으로 버그와 예외 케이스를 수정하고, 게임 모드를 추가하며 기능을 확장했습니다.
+
+## 기술 스택
+
+**Frontend**
+
+![React](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white)
+![CSS](https://img.shields.io/badge/CSS-1572B6?style=flat-square&logo=css3&logoColor=white)
+
+**Deploy**
+
+![Cloudflare Pages](https://img.shields.io/badge/Cloudflare_Pages-F38020?style=flat-square&logo=cloudflare&logoColor=white)
+
+## 시스템 구조
+
+```mermaid
+flowchart LR
+    User["사용자"] --> Cloudflare["Cloudflare Pages"]
+    Cloudflare --> App["React / TypeScript"]
+
+    App --> Game["게임 로직"]
+    Game --> Data["실험체 / 아이템 JSON 데이터"]
+
+    App --> Storage["LocalStorage"]
+```
+
+별도의 백엔드 없이 프론트에서 로직을 처리합니다.
+
+실험체와 아이템 데이터는 정적 JSON으로 관리하며, 플레이 기록과 통계는 브라우저 `localStorage`에 저장합니다.
 
 ## 실행
 
-Node.js 24 이상에서 실행합니다.
+Node.js 환경에서 실행합니다.
 
-```sh
+```bash
 npm install
 npm run dev
 ```
 
-## 검증 및 빌드
+테스트 및 프로덕션 빌드는 다음 명령으로 확인할 수 있습니다.
 
-```sh
+```bash
 npm test
 npm run build
 ```
 
-정적 배포 결과는 `dist/`에 생성됩니다.
+## Disclaimer
 
-## 방문 분석
+이 프로젝트는 이터널 리턴을 기반으로 제작한 비공식 팬 프로젝트입니다.
 
-Cloudflare Pages의 Web Analytics를 사용해 익명 방문자 수만 확인합니다. 애플리케이션 코드에서는 별도의 분석 스크립트나 게임 이벤트를 전송하지 않습니다. 배포 후 Cloudflare 대시보드의 `Metrics`에서 Web Analytics를 활성화합니다.
+Eternal Return 및 관련 캐릭터, 아이템, 이미지 등의 지적재산권은 **Nimble Neuron** 및 각 권리자에게 있습니다.
 
-## 규칙
-
-- 매 판 무작위 실험체를 기본 5번, 슈퍼겁쟁이 모드에서는 10번 안에 맞힙니다. 다음 판은 직전 정답을 제외합니다.
-- 기본, 봉인, 안개, 단일, 슈퍼겁쟁이, 사나이클럽, 암호, 첩자, 연속 출제의 9개 모드를 지원합니다. 모드를 바꾸면 새 판이 시작됩니다.
-- 역할군, 무기, 나이, 키, 위험등급을 비교합니다.
-- 초록은 일치, 노랑은 일부 일치, 빨강은 불일치입니다. 화살표는 정답의 수치 방향이며 슈퍼겁쟁이 모드에서는 위험등급 방향도 알려줍니다.
-- 얼굴 미리보기가 있는 한글·초성·영문 검색과 키보드 선택, 랜덤 추측을 지원합니다. 정확한 이름과 앞부분 일치를 우선합니다.
-- 최신 추측이 맨 위에 나타나고, 판 종료 후 같은 위치에서 다음 판을 시작합니다.
-- 정답을 맞히면 실험체 전신 이미지, 도전 횟수, 모드를 보여주는 결과 창이 열립니다.
-- 플레이 횟수, 승률, 연승, 시도 횟수 분포는 서버 전송 없이 브라우저 `localStorage`에만 저장되며 통계 창에서 삭제할 수 있습니다.
-- 새로고침 시 새 판을 시작합니다.
-
-## 추가 모드
-
-- 암호: 5회 안에 정답을 찾습니다. 추측한 대상의 속성값은 표시하지만 속성별 판정은 숨기고 완전 일치 수만 제공합니다. 부분 일치는 세지 않으며, 5개가 일치해도 이름이 다르면 오답입니다.
-- 첩자: 5회 안에 정답을 찾습니다. 오답마다 무작위 속성 하나의 판정을 일치↔불일치로 바꾸고 나머지 네 판정은 유지합니다. 부분 일치·방향 판정의 거짓은 일치로 표시합니다. 미상 나이는 무작위 방향 대신 일치 여부만 판정합니다. 정답 제출에는 거짓이 없고, 종료 후 각 오답의 거짓 속성과 원래 판정을 공개합니다. 정보 유출을 막기 위해 이 모드에서는 아이템 기회 면제를 적용하지 않습니다.
-- 연속 출제: 문제마다 기회를 5회로 회복하고 서로 다른 정답 3개를 연속으로 맞히면 클리어합니다. 중간 실패로 도전이 종료됩니다. 전체 도전을 한 판으로 집계하며 최고 정답 수와 클리어 누적 시도 횟수(최대 15회)를 기록합니다. 모드 변경·새로고침 시 진행 중 도전은 초기화됩니다.
-- 실험체와 아이템에 동일하게 적용합니다. 첩자를 제외하고 아이템의 모든 속성이 공개되고 일치하는 오답은 기존과 같이 기회를 차감하지 않습니다. 암호에서도 일치 수 5로 이미 확인할 수 있는 동일 속성 오답은 면제합니다.
-
-`npm test`와 `npm run build`로 검증합니다. React 상태 전환은 개발 서버의 `/tests/modes.html`을 열어 PASS를 확인합니다.
-
-## 9개 모드 안에서의 개선 후보
-
-- 같은 문제 공유: 모드를 늘리지 않고 기존 모드의 시작 조건을 공유하는 기능. 데이터 버전과 문제 시드 고정이 필요합니다.
-- 종료 후 복기: 정답과 각 추측의 관계를 비교해 다음 판의 첫 추측 전략을 익히는 기능.
-
-실험체 데이터의 원본은 `characters.json`입니다. 최신 패치와의 일치 여부는 보장하지 않으며 프로젝트에 제공된 값을 사용합니다.
-
-비공식 팬 프로젝트입니다. Eternal Return 및 관련 IP는 Nimble Neuron에 귀속됩니다. Pretendard 글꼴 라이선스는 `public/fonts/LICENSE.txt`에 포함되어 있습니다.
-
-
+프로젝트에서 사용하는 **Pretendard** 폰트는 SIL Open Font License 1.1에 따라 사용됩니다.  
+라이선스 전문은 [`public/fonts/LICENSE.txt`](public/fonts/LICENSE.txt)에서 확인할 수 있습니다.
